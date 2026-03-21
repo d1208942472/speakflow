@@ -1,0 +1,52 @@
+"""SpeakFlow API — NVIDIA-powered business English speaking coach"""
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers import speech, conversation, lessons, users, sessions, webhooks, leagues
+
+app = FastAPI(
+    title="SpeakFlow API",
+    version="1.0.0",
+    description="NVIDIA-powered business English speaking coach",
+    docs_url="/docs",
+    redoc_url="/redoc",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "https://speakflow.app"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+for router in [
+    speech.router,
+    conversation.router,
+    lessons.router,
+    users.router,
+    sessions.router,
+    webhooks.router,
+    leagues.router,
+]:
+    app.include_router(router)
+
+
+@app.get("/health")
+def health():
+    """Health check endpoint."""
+    return {
+        "status": "ok",
+        "powered_by": "NVIDIA Riva + NVIDIA NIM (Llama 3.1 70B)",
+        "version": "1.0.0",
+    }
+
+
+@app.get("/")
+def root():
+    """Root endpoint — redirect hint."""
+    return {
+        "message": "SpeakFlow API",
+        "docs": "/docs",
+        "health": "/health",
+    }
