@@ -1,0 +1,12 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "env": {
+    "NEXT_PUBLIC_SUPABASE_URL": "@speakflow-supabase-url",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY": "@speakflow-supabase-anon-key",
+    "STRIPE_SECRET_KEY": "@speakflow-stripe-secret-key",
+    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@speakflow-stripe-publishable-key",
+    "STRIPE_ANNUAL_PRICE_ID": "@speakflow-stripe-annual-price-id"
+  }
+}
