@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from dependencies import get_current_user, supabase
 from services.nvidia_nim import ConversationTurn
 from services.nvidia_voicechat import voicechat_service
+from services.nvidia_guardrails import guardrails_service
 
 router = APIRouter(prefix="/voicechat", tags=["voicechat"])
 
@@ -89,7 +90,7 @@ async def voice_chat_turn(
     if len(audio_bytes) > 25 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Audio too large (max 25MB)")
 
-    # Run speech-to-speech pipeline
+    # Run speech-to-speech pipeline (with content safety screening)
     try:
         result, audio_response = await voicechat_service.process_voice_turn(
             audio_bytes=audio_bytes,

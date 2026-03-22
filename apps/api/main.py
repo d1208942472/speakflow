@@ -49,8 +49,9 @@ def health():
             "NVIDIA Riva Translate (12 languages)",
             "NVIDIA Nemotron VoiceChat (Pro speech-to-speech)",
             "NVIDIA NIM Embeddings nv-embedqa-e5-v5 (lesson recommendations)",
+            "NVIDIA Llama Guard 3 (content safety)",
         ],
-        "version": "1.4.0",
+        "version": "1.5.0",
     }
 
 

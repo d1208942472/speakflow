@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from services.nvidia_riva import NvidiaRivaService
 from services.nvidia_nim import NvidiaNimService, ConversationTurn
 from services.nvidia_tts import NvidiaTTSService
+from services.nvidia_guardrails import guardrails_service
 
 
 class VoiceChatResult(BaseModel):
@@ -66,6 +67,12 @@ class NvidiaVoiceChatService:
 
         if not transcript.strip():
             transcript = "[unclear speech]"
+
+        # Step 1b: Safety screening via Llama Guard 3 (non-blocking on failure)
+        if transcript != "[unclear speech]":
+            is_safe, _ = await guardrails_service.is_safe(transcript)
+            if not is_safe:
+                raise RuntimeError("Voice content violates community guidelines")
 
         # Step 2: Get NIM coaching feedback + conversational response
         nim_feedback = await self.nim.get_conversation_response(

@@ -4,6 +4,7 @@ from pydantic import BaseModel, field_validator
 
 from dependencies import get_current_user, supabase
 from services.nvidia_nim import nim_service, ConversationFeedback, ConversationTurn
+from services.nvidia_guardrails import guardrails_service
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
@@ -74,6 +75,14 @@ async def get_conversation_response(
                 status_code=403,
                 detail="This lesson requires a Pro subscription",
             )
+
+    # Content safety check via Llama Guard 3 (non-blocking on API failure)
+    is_safe, safety_reason = await guardrails_service.is_safe(request.user_message)
+    if not is_safe:
+        raise HTTPException(
+            status_code=422,
+            detail="Message violates content policy. Please keep conversations professional.",
+        )
 
     try:
         feedback = await nim_service.get_conversation_response(
