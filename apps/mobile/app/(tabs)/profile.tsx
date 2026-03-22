@@ -17,6 +17,7 @@ const LEAGUE_LABELS: Record<LeagueTier, string> = {
   bronze: 'Bronze',
   silver: 'Silver',
   gold: 'Gold',
+  platinum: 'Platinum',
   diamond: 'Diamond',
 };
 
@@ -24,6 +25,7 @@ const LEAGUE_EMOJIS: Record<LeagueTier, string> = {
   bronze: '🥉',
   silver: '🥈',
   gold: '🥇',
+  platinum: '🏅',
   diamond: '💎',
 };
 

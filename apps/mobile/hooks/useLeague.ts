@@ -1,23 +1,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiGet } from '../services/api';
 import { useUserStore } from '../store/userStore';
+import type { LeagueTier } from '../store/userStore';
 
 export interface LeagueStanding {
   userId: string;
-  username: string;
+  username: string | null;
   weeklyFP: number;
-  league: 'bronze' | 'silver' | 'gold' | 'diamond';
+  streak: number;
+  league: LeagueTier;
   rank: number;
+  isCurrentUser: boolean;
 }
 
-interface LeagueStandingsResponse {
-  standings: LeagueStanding[];
-  user_rank: number;
+// Shape of /leagues/standings response from backend (snake_case)
+interface LeagueStandingsApiResponse {
+  week_start: string;
+  league: string;
+  standings: Array<{
+    rank: number;
+    user_id: string;
+    username: string | null;
+    weekly_fp: number;
+    streak: number;
+    league: string;
+    is_current_user: boolean;
+  }>;
+  current_user_rank: number;
+  current_user_weekly_fp: number;
+  total_participants: number;
+  promotion_zone_cutoff: number;
+  demotion_zone_cutoff: number;
 }
 
 export interface UseLeagueReturn {
   standings: LeagueStanding[];
   userRank: number | null;
+  promotionCutoff: number;
+  demotionCutoff: number;
   isLoading: boolean;
   error: string | null;
   refresh: () => void;
@@ -26,11 +46,12 @@ export interface UseLeagueReturn {
 export function useLeague(): UseLeagueReturn {
   const [standings, setStandings] = useState<LeagueStanding[]>([]);
   const [userRank, setUserRank] = useState<number | null>(null);
+  const [promotionCutoff, setPromotionCutoff] = useState(0);
+  const [demotionCutoff, setDemotionCutoff] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const token = useUserStore((s) => s.token);
-  const league = useUserStore((s) => s.league);
 
   const fetchStandings = useCallback(async () => {
     if (!token) return;
@@ -39,19 +60,34 @@ export function useLeague(): UseLeagueReturn {
     setError(null);
 
     try {
-      const response = await apiGet<LeagueStandingsResponse>(
-        `/leagues/standings?league=${league}`,
+      // week_offset=0 = current week; backend derives league from authenticated user's profile
+      const response = await apiGet<LeagueStandingsApiResponse>(
+        '/leagues/standings?week_offset=0',
         token
       );
-      setStandings(response.standings);
-      setUserRank(response.user_rank);
+
+      // Map snake_case API fields to camelCase frontend types
+      const mapped: LeagueStanding[] = response.standings.map((entry) => ({
+        rank: entry.rank,
+        userId: entry.user_id,
+        username: entry.username,
+        weeklyFP: entry.weekly_fp,
+        streak: entry.streak,
+        league: entry.league as LeagueTier,
+        isCurrentUser: entry.is_current_user,
+      }));
+
+      setStandings(mapped);
+      setUserRank(response.current_user_rank);
+      setPromotionCutoff(response.promotion_zone_cutoff);
+      setDemotionCutoff(response.demotion_zone_cutoff);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Failed to load standings';
       setError(message);
     } finally {
       setIsLoading(false);
     }
-  }, [token, league]);
+  }, [token]);
 
   useEffect(() => {
     fetchStandings();
@@ -60,6 +96,8 @@ export function useLeague(): UseLeagueReturn {
   return {
     standings,
     userRank,
+    promotionCutoff,
+    demotionCutoff,
     isLoading,
     error,
     refresh: fetchStandings,

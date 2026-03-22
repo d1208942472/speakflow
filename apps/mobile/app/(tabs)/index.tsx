@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { StreakBanner } from '../../components/StreakBanner';
 import { LessonCard, type Lesson } from '../../components/LessonCard';
 import { useUserStore } from '../../store/userStore';
+import { apiGet } from '../../services/api';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -20,65 +22,53 @@ function getGreeting(): string {
   return 'Good evening';
 }
 
-// Static lesson catalogue — in production this would come from the API
-const LESSONS: Lesson[] = [
-  {
-    id: 'interview-001',
-    title: 'Tell me about yourself',
-    scenario: 'Job Interview',
-    level: 1,
-    fpReward: 20,
-    isProOnly: false,
-  },
-  {
-    id: 'interview-002',
-    title: 'Strengths and weaknesses',
-    scenario: 'Job Interview',
-    level: 2,
-    fpReward: 25,
-    isProOnly: false,
-  },
-  {
-    id: 'presentation-001',
-    title: 'Opening a presentation',
-    scenario: 'Presentations',
-    level: 1,
-    fpReward: 20,
-    isProOnly: false,
-  },
-  {
-    id: 'presentation-002',
-    title: 'Handling Q&A',
-    scenario: 'Presentations',
-    level: 3,
-    fpReward: 30,
-    isProOnly: true,
-  },
-  {
-    id: 'smalltalk-001',
-    title: 'Breaking the ice',
-    scenario: 'Small Talk',
-    level: 1,
-    fpReward: 15,
-    isProOnly: false,
-  },
-  {
-    id: 'email-001',
-    title: 'Writing a follow-up email',
-    scenario: 'Email Writing',
-    level: 2,
-    fpReward: 20,
-    isProOnly: true,
-  },
-  {
-    id: 'negotiation-001',
-    title: 'Stating your position',
-    scenario: 'Negotiation',
-    level: 3,
-    fpReward: 35,
-    isProOnly: true,
-  },
+// Fallback lessons for offline / API unavailable
+const FALLBACK_LESSONS: Lesson[] = [
+  { id: 'interview-001', title: 'Tell me about yourself', scenario: 'Job Interview', level: 1, fpReward: 20, isProOnly: false },
+  { id: 'interview-002', title: 'Strengths and weaknesses', scenario: 'Job Interview', level: 2, fpReward: 25, isProOnly: false },
+  { id: 'presentation-001', title: 'Opening a presentation', scenario: 'Presentations', level: 1, fpReward: 20, isProOnly: false },
+  { id: 'smalltalk-001', title: 'Breaking the ice', scenario: 'Small Talk', level: 1, fpReward: 15, isProOnly: false },
 ];
+
+interface ApiLessonsResponse {
+  lessons: Array<{
+    id: string;
+    scenario: string;
+    level: number;
+    title: string;
+    fp_reward: number;
+    is_pro_only: boolean;
+  }>;
+}
+
+function useApiLessons(): { lessons: Lesson[]; isLoading: boolean } {
+  const token = useUserStore((s) => s.token);
+  const [lessons, setLessons] = useState<Lesson[]>(FALLBACK_LESSONS);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    setIsLoading(true);
+    apiGet<ApiLessonsResponse>('/lessons/', token)
+      .then((data) => {
+        const mapped: Lesson[] = data.lessons.map((l) => ({
+          id: l.id,
+          title: l.title,
+          scenario: l.scenario,
+          level: l.level as 1 | 2 | 3 | 4 | 5,
+          fpReward: l.fp_reward,
+          isProOnly: l.is_pro_only,
+        }));
+        if (mapped.length > 0) setLessons(mapped);
+      })
+      .catch(() => {
+        // Keep fallback data on error — no-op
+      })
+      .finally(() => setIsLoading(false));
+  }, [token]);
+
+  return { lessons, isLoading };
+}
 
 interface ScenarioCard {
   emoji: string;
@@ -99,16 +89,17 @@ export default function LearnTab(): React.JSX.Element {
   const router = useRouter();
   const username = useUserStore((s) => s.username);
   const greeting = useMemo(() => getGreeting(), []);
+  const { lessons, isLoading: lessonsLoading } = useApiLessons();
 
   const firstLessonByScenario = useMemo(() => {
     const map: Record<string, string> = {};
-    for (const lesson of LESSONS) {
+    for (const lesson of lessons) {
       if (!map[lesson.scenario]) {
         map[lesson.scenario] = lesson.id;
       }
     }
     return map;
-  }, []);
+  }, [lessons]);
 
   const handleScenarioPress = (scenario: string): void => {
     const lessonId = firstLessonByScenario[scenario];
@@ -185,13 +176,17 @@ export default function LearnTab(): React.JSX.Element {
 
         {/* All lessons list */}
         <Text style={styles.sectionTitle}>All Lessons</Text>
-        {LESSONS.map((lesson) => (
-          <LessonCard
-            key={lesson.id}
-            lesson={lesson}
-            onPress={() => router.push(`/lesson/${lesson.id}`)}
-          />
-        ))}
+        {lessonsLoading ? (
+          <ActivityIndicator color={Colors.primary} style={{ marginVertical: 16 }} />
+        ) : (
+          lessons.map((lesson) => (
+            <LessonCard
+              key={lesson.id}
+              lesson={lesson}
+              onPress={() => router.push(`/lesson/${lesson.id}`)}
+            />
+          ))
+        )}
 
         <View style={styles.bottomPad} />
       </ScrollView>

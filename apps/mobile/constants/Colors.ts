@@ -15,6 +15,7 @@ export const Colors = {
     bronze: '#CD7F32',
     silver: '#C0C0C0',
     gold: '#FFD700',
+    platinum: '#E5E4E2',
     diamond: '#00BFFF',
   },
   nvidia: '#76B900',

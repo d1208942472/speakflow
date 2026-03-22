@@ -1,3 +1,7 @@
+// Shared TypeScript types for SpeakFlow — aligns with Supabase schema
+
+export type LeagueTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
+
 export interface User {
   id: string;
   email: string;
@@ -6,7 +10,7 @@ export interface User {
   streakShields: number;
   totalFP: number;
   weeklyFP: number;
-  league: 'bronze' | 'silver' | 'gold' | 'diamond';
+  league: LeagueTier;
   isPro: boolean;
   createdAt: string;
 }
@@ -30,6 +34,16 @@ export interface SessionResult {
   fpEarned: number;
   nivaFeedback: string;
   completedAt: string;
+}
+
+export interface LeagueStanding {
+  userId: string;
+  username: string | null;
+  weeklyFP: number;
+  streak: number;
+  league: LeagueTier;
+  rank: number;
+  isCurrentUser: boolean;
 }
 
 export interface GamificationResult {

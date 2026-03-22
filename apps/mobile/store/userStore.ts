@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export type LeagueTier = 'bronze' | 'silver' | 'gold' | 'diamond';
+export type LeagueTier = 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
 
 export interface UserState {
   userId: string | null;
@@ -32,7 +32,7 @@ const initialState: UserState = {
   streakShields: 0,
   totalFP: 0,
   weeklyFP: 0,
-  league: 'bronze',
+  league: 'bronze' as LeagueTier,
   isPro: false,
   token: null,
   lastActivityDate: null,

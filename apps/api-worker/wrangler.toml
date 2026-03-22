@@ -1,0 +1,12 @@
+name = "speakflow-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+ENVIRONMENT = "production"
+
+# Routes - serve on meteorfarmer.com subdomain
+[[routes]]
+pattern = "api.meteorfarmer.com/*"
+zone_name = "meteorfarmer.com"

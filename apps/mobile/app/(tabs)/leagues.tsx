@@ -17,6 +17,7 @@ const LEAGUE_LABELS: Record<LeagueTier, string> = {
   bronze: 'Bronze League',
   silver: 'Silver League',
   gold: 'Gold League',
+  platinum: 'Platinum League',
   diamond: 'Diamond League',
 };
 
@@ -24,6 +25,7 @@ const LEAGUE_EMOJIS: Record<LeagueTier, string> = {
   bronze: '🥉',
   silver: '🥈',
   gold: '🥇',
+  platinum: '🏅',
   diamond: '💎',
 };
 
@@ -49,7 +51,7 @@ function useCountdownToSunday(): string {
 }
 
 export default function LeaguesTab(): React.JSX.Element {
-  const { standings, userRank, isLoading, error, refresh } = useLeague();
+  const { standings, userRank, promotionCutoff, demotionCutoff, isLoading, error, refresh } = useLeague();
   const league = useUserStore((s) => s.league);
   const userId = useUserStore((s) => s.userId);
   const weeklyFP = useUserStore((s) => s.weeklyFP);
@@ -143,7 +145,7 @@ export default function LeaguesTab(): React.JSX.Element {
             {top30.map((standing, index) => (
               <React.Fragment key={standing.userId}>
                 {/* Danger zone divider after rank 25 */}
-                {index === 25 && (
+                {index === demotionCutoff - 1 && (
                   <View style={styles.zoneLabel}>
                     <View style={[styles.zoneDot, { backgroundColor: Colors.danger }]} />
                     <Text style={[styles.zoneLabelText, { color: Colors.danger }]}>

@@ -2,9 +2,44 @@ import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { supabase } from '../services/supabase';
+import { apiGet } from '../services/api';
+import { initPurchases } from '../services/purchases';
 import { useUserStore } from '../store/userStore';
 import { Colors } from '../constants/Colors';
 import type { Session } from '@supabase/supabase-js';
+import type { LeagueTier } from '../store/userStore';
+
+interface ApiProfile {
+  id: string;
+  username: string | null;
+  streak: number;
+  streak_shields: number;
+  total_fp: number;
+  weekly_fp: number;
+  league: LeagueTier;
+  is_pro: boolean;
+  last_activity_date: string | null;
+  created_at: string;
+}
+
+async function syncProfileFromApi(token: string, setUser: (u: Partial<ReturnType<typeof useUserStore.getState>>) => void): Promise<void> {
+  try {
+    const profile = await apiGet<ApiProfile>('/users/me', token);
+    setUser({
+      username: profile.username ?? undefined,
+      streak: profile.streak,
+      streakShields: profile.streak_shields,
+      totalFP: profile.total_fp,
+      weeklyFP: profile.weekly_fp,
+      league: profile.league,
+      isPro: profile.is_pro,
+      lastActivityDate: profile.last_activity_date,
+    });
+  } catch (e) {
+    // Non-fatal: offline or API unavailable — store has last known values
+    console.warn('[Layout] Profile sync failed:', e);
+  }
+}
 
 export default function RootLayout(): React.JSX.Element {
   const [isLoading, setIsLoading] = useState(true);
@@ -15,7 +50,7 @@ export default function RootLayout(): React.JSX.Element {
 
   useEffect(() => {
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       if (s) {
         setUser({
@@ -23,13 +58,17 @@ export default function RootLayout(): React.JSX.Element {
           token: s.access_token,
           username: s.user.user_metadata?.username ?? s.user.email?.split('@')[0] ?? 'User',
         });
+        // Sync authoritative profile data (streak, FP, league, isPro) from API
+        await syncProfileFromApi(s.access_token, setUser);
+        // Initialize RevenueCat with authenticated user ID
+        await initPurchases(s.user.id);
       }
       setIsLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
+      async (_event, newSession) => {
         setSession(newSession);
         if (newSession) {
           setUser({
@@ -40,6 +79,9 @@ export default function RootLayout(): React.JSX.Element {
               newSession.user.email?.split('@')[0] ??
               'User',
           });
+          // Sync profile on each new session (login, token refresh)
+          await syncProfileFromApi(newSession.access_token, setUser);
+          await initPurchases(newSession.user.id);
         }
       }
     );

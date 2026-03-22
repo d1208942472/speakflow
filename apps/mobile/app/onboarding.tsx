@@ -11,8 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { Colors } from '../constants/Colors';
-import { useUserStore } from '../store/userStore';
-import { upsertUserProfile } from '../services/supabase';
+import { supabase } from '../services/supabase';
 
 // --- Types ---
 type EnglishLevel = 'beginner' | 'intermediate' | 'advanced';
@@ -269,7 +268,6 @@ const STEPS = [
 
 export default function OnboardingScreen(): React.JSX.Element {
   const router = useRouter();
-  const userId = useUserStore((s) => s.userId);
   const [step, setStep] = useState(0);
   const [data, setData] = useState<OnboardingData>({
     level: null,
@@ -315,13 +313,14 @@ export default function OnboardingScreen(): React.JSX.Element {
         console.log('[Onboarding] Notification permission denied');
       }
 
-      // Save preferences to Supabase
-      if (userId) {
-        await upsertUserProfile(userId, {
-          // Store level and goal in profile (requires schema support)
-          // In this implementation we pass them through user_metadata via Supabase
-        });
-      }
+      // Save preferences to Supabase user_metadata (non-blocking)
+      await supabase.auth.updateUser({
+        data: {
+          english_level: data.level,
+          primary_goal: data.goal,
+          daily_goal_minutes: data.dailyGoal,
+        },
+      });
     } catch (e) {
       console.error('[Onboarding] finish error:', e);
     } finally {

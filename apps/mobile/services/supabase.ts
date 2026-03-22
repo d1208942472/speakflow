@@ -27,7 +27,7 @@ export interface UserProfile {
   streak_shields: number;
   total_fp: number;
   weekly_fp: number;
-  league: 'bronze' | 'silver' | 'gold' | 'diamond';
+  league: 'bronze' | 'silver' | 'gold' | 'platinum' | 'diamond';
   is_pro: boolean;
   lessons_completed: number;
   created_at: string;

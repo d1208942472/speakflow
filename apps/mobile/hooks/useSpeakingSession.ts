@@ -1,5 +1,4 @@
 import { useState, useCallback } from 'react';
-import { apiPostForm, apiPost } from '../services/api';
 import { useUserStore } from '../store/userStore';
 
 export type SessionPhase = 'intro' | 'recording' | 'scored' | 'conversation' | 'complete';
@@ -12,34 +11,53 @@ export interface ConversationMessage {
 export interface SessionState {
   phase: SessionPhase;
   pronunciationScore: number | null;
+  fluencyScore: number | null;
   fpEarned: number;
   aiResponse: string;
   grammarFeedback: string;
+  vocabularySuggestions: string;
   conversationHistory: ConversationMessage[];
+  transcript: string;
+  levelUpMessage: string | null;
+  streakBroken: boolean;
   isLoading: boolean;
   error: string | null;
 }
 
-interface SpeechScoreResponse {
-  score: number;
-  feedback: string;
+// Shape of /sessions/complete response
+interface SessionCompleteResponse {
+  session_id: string;
+  pronunciation_score: number;
+  fluency_score: number;
+  transcript: string;
+  nim_response: string;
   grammar_feedback: string;
+  vocabulary_suggestions: string;
   fp_earned: number;
+  new_total_fp: number;
+  new_weekly_fp: number;
+  new_streak: number;
+  streak_broken: boolean;
+  shield_consumed: boolean;
+  league_rank: number;
+  level_up_message: string | null;
+  overall_nim_score: number;
 }
 
-interface ConversationResponse {
-  message: string;
-  conversation_history: ConversationMessage[];
-  is_complete: boolean;
-}
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
 const INITIAL_STATE: SessionState = {
   phase: 'intro',
   pronunciationScore: null,
+  fluencyScore: null,
   fpEarned: 0,
   aiResponse: '',
   grammarFeedback: '',
+  vocabularySuggestions: '',
   conversationHistory: [],
+  transcript: '',
+  levelUpMessage: null,
+  streakBroken: false,
   isLoading: false,
   error: null,
 };
@@ -47,12 +65,11 @@ const INITIAL_STATE: SessionState = {
 export function useSpeakingSession(
   lessonId: string,
   targetPhrase: string,
-  systemPrompt: string
+  _systemPrompt: string
 ) {
   const [state, setState] = useState<SessionState>(INITIAL_STATE);
   const token = useUserStore((s) => s.token);
-  const addFP = useUserStore((s) => s.addFP);
-  const incrementStreak = useUserStore((s) => s.incrementStreak);
+  const setUser = useUserStore((s) => s.setUser);
 
   const setPhase = useCallback((phase: SessionPhase) => {
     setState((prev) => ({ ...prev, phase }));
@@ -61,113 +78,91 @@ export function useSpeakingSession(
   const submitRecording = useCallback(
     async (audioUri: string): Promise<void> => {
       if (!token) {
-        setState((prev) => ({ ...prev, error: 'Not authenticated' }));
+        setState((prev) => ({ ...prev, error: 'Not authenticated. Please log in again.' }));
         return;
       }
 
       setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
       try {
-        // Step 1: Score pronunciation
+        // POST multipart form to /sessions/complete — single unified pipeline
         const formData = new FormData();
+        formData.append('lesson_id', lessonId);
+        formData.append('target_phrase', targetPhrase);
+        formData.append('audio_format', 'm4a');
+        formData.append(
+          'conversation_history',
+          JSON.stringify(
+            state.conversationHistory.map((msg) => ({
+              role: msg.role,
+              content: msg.content,
+            }))
+          )
+        );
         formData.append('audio', {
           uri: audioUri,
           type: 'audio/m4a',
           name: 'recording.m4a',
         } as unknown as Blob);
-        formData.append('lesson_id', lessonId);
-        formData.append('target_phrase', targetPhrase);
 
-        const scoreResponse = await apiPostForm<SpeechScoreResponse>(
-          '/speech/score',
-          formData,
-          token
-        );
+        const response = await fetch(`${API_BASE}/sessions/complete`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // NOTE: Do NOT set Content-Type — fetch sets multipart boundary automatically
+          },
+          body: formData,
+        });
 
-        const earnedFP = scoreResponse.fp_earned;
+        if (!response.ok) {
+          let errorMessage = `Session failed (${response.status})`;
+          try {
+            const errorBody = await response.json();
+            errorMessage = errorBody.detail ?? errorBody.message ?? errorMessage;
+          } catch {
+            // ignore parse error
+          }
+          throw new Error(errorMessage);
+        }
 
-        // Step 2: Get AI conversational response
+        const result: SessionCompleteResponse = await response.json();
+
+        // Sync authoritative gamification state from server to local store
+        setUser({
+          totalFP: result.new_total_fp,
+          weeklyFP: result.new_weekly_fp,
+          streak: result.new_streak,
+        });
+
+        // Append transcript + AI response to conversation history
         const updatedHistory: ConversationMessage[] = [
           ...state.conversationHistory,
-          { role: 'user', content: targetPhrase },
+          { role: 'user', content: result.transcript || targetPhrase },
+          { role: 'assistant', content: result.nim_response },
         ];
-
-        const conversationResponse = await apiPost<ConversationResponse>(
-          '/conversation/respond',
-          {
-            lesson_id: lessonId,
-            system_prompt: systemPrompt,
-            conversation_history: updatedHistory,
-            user_message: targetPhrase,
-          },
-          token
-        );
-
-        // Update local FP
-        addFP(earnedFP);
-        incrementStreak();
 
         setState((prev) => ({
           ...prev,
-          phase: conversationResponse.is_complete ? 'complete' : 'scored',
-          pronunciationScore: scoreResponse.score,
-          fpEarned: prev.fpEarned + earnedFP,
-          aiResponse: scoreResponse.feedback,
-          grammarFeedback: scoreResponse.grammar_feedback,
-          conversationHistory: conversationResponse.conversation_history,
+          phase: 'complete',
+          pronunciationScore: result.pronunciation_score,
+          fluencyScore: result.fluency_score,
+          fpEarned: prev.fpEarned + result.fp_earned,
+          aiResponse: result.nim_response,
+          grammarFeedback: result.grammar_feedback,
+          vocabularySuggestions: result.vocabulary_suggestions,
+          conversationHistory: updatedHistory,
+          transcript: result.transcript,
+          levelUpMessage: result.level_up_message,
+          streakBroken: result.streak_broken,
           isLoading: false,
           error: null,
         }));
       } catch (e) {
-        const message = e instanceof Error ? e.message : 'An error occurred';
+        const message = e instanceof Error ? e.message : 'An error occurred. Please try again.';
         setState((prev) => ({ ...prev, isLoading: false, error: message }));
       }
     },
-    [token, lessonId, targetPhrase, systemPrompt, state.conversationHistory, addFP, incrementStreak]
-  );
-
-  const continueConversation = useCallback(
-    async (userMessage: string): Promise<void> => {
-      if (!token) return;
-
-      setState((prev) => ({
-        ...prev,
-        phase: 'conversation',
-        isLoading: true,
-        error: null,
-      }));
-
-      try {
-        const updatedHistory: ConversationMessage[] = [
-          ...state.conversationHistory,
-          { role: 'user', content: userMessage },
-        ];
-
-        const conversationResponse = await apiPost<ConversationResponse>(
-          '/conversation/respond',
-          {
-            lesson_id: lessonId,
-            system_prompt: systemPrompt,
-            conversation_history: updatedHistory,
-            user_message: userMessage,
-          },
-          token
-        );
-
-        setState((prev) => ({
-          ...prev,
-          phase: conversationResponse.is_complete ? 'complete' : 'conversation',
-          aiResponse: conversationResponse.message,
-          conversationHistory: conversationResponse.conversation_history,
-          isLoading: false,
-          error: null,
-        }));
-      } catch (e) {
-        const message = e instanceof Error ? e.message : 'An error occurred';
-        setState((prev) => ({ ...prev, isLoading: false, error: message }));
-      }
-    },
-    [token, lessonId, systemPrompt, state.conversationHistory]
+    [token, lessonId, targetPhrase, state.conversationHistory, setUser]
   );
 
   const startSession = useCallback(() => {
@@ -183,7 +178,6 @@ export function useSpeakingSession(
     setPhase,
     startSession,
     submitRecording,
-    continueConversation,
     resetSession,
   };
 }

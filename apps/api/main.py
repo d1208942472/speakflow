@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import speech, conversation, lessons, users, sessions, webhooks, leagues
+from routers import speech, conversation, lessons, users, sessions, webhooks, leagues, notifications
 
 app = FastAPI(
     title="SpeakFlow API",
@@ -28,6 +28,7 @@ for router in [
     sessions.router,
     webhooks.router,
     leagues.router,
+    notifications.router,
 ]:
     app.include_router(router)
 
