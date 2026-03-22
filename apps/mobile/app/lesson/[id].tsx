@@ -16,6 +16,7 @@ import { MaxAvatar } from '../../components/MaxAvatar';
 import { useRecording } from '../../hooks/useRecording';
 import { useSpeakingSession } from '../../hooks/useSpeakingSession';
 import { useTTS } from '../../hooks/useTTS';
+import { useVoiceChat } from '../../hooks/useVoiceChat';
 import { useUserStore } from '../../store/userStore';
 import { apiGet } from '../../services/api';
 
@@ -266,6 +267,9 @@ export default function LessonScreen(): React.JSX.Element {
   // Paywall check
   const isLocked = lesson.isProOnly && !isPro;
 
+  // Voice Chat mode (Pro only — speech-to-speech with Max)
+  const [voiceChatMode, setVoiceChatMode] = useState(false);
+
   const {
     recordingState,
     audioUri,
@@ -278,6 +282,17 @@ export default function LessonScreen(): React.JSX.Element {
     useSpeakingSession(lesson.id, lesson.targetPhrase, lesson.systemPrompt);
 
   const { speak, stop: stopTTS, isSpeaking: ttsPlaying } = useTTS();
+
+  // Voice Chat hook for Pro speech-to-speech mode
+  const {
+    phase: vcPhase,
+    conversationHistory: vcHistory,
+    lastResult: vcLastResult,
+    startTurn: vcStartTurn,
+    endTurn: vcEndTurn,
+    resetConversation: vcReset,
+    isProRequired: vcProRequired,
+  } = useVoiceChat(lesson.id);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
 
@@ -328,6 +343,7 @@ export default function LessonScreen(): React.JSX.Element {
     stopTTS();
     resetSession();
     resetRecording();
+    vcReset();
     setHasSubmitted(false);
     lastAiResponse.current = '';
   };
@@ -367,13 +383,35 @@ export default function LessonScreen(): React.JSX.Element {
             )}
           </View>
 
+          {/* Voice Chat mode toggle for Pro users */}
+          {isPro && !isLocked && (
+            <View style={styles.modeToggleRow}>
+              <TouchableOpacity
+                onPress={() => setVoiceChatMode(false)}
+                style={[styles.modeToggleBtn, !voiceChatMode && styles.modeToggleActive]}
+              >
+                <Text style={[styles.modeToggleText, !voiceChatMode && styles.modeToggleTextActive]}>
+                  📝 Standard
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setVoiceChatMode(true)}
+                style={[styles.modeToggleBtn, voiceChatMode && styles.modeToggleActive]}
+              >
+                <Text style={[styles.modeToggleText, voiceChatMode && styles.modeToggleTextActive]}>
+                  🎙 Voice Chat
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[styles.startButton, isLocked && styles.startButtonLocked]}
             onPress={handleStartPress}
             activeOpacity={0.85}
           >
             <Text style={styles.startButtonText}>
-              {isLocked ? '🔒 Unlock with Pro' : '🎙️ Start Speaking'}
+              {isLocked ? '🔒 Unlock with Pro' : voiceChatMode ? '🎙 Start Voice Chat' : '🎙️ Start Speaking'}
             </Text>
           </TouchableOpacity>
         </ScrollView>
@@ -522,6 +560,126 @@ export default function LessonScreen(): React.JSX.Element {
             <Text style={styles.doneButtonText}>Continue Learning</Text>
           </TouchableOpacity>
         </View>
+      </View>
+    );
+  }
+
+  // --- Voice Chat Mode (Pro) ---
+  if (voiceChatMode && session.phase === 'conversation') {
+    const vcIsRecording = vcPhase === 'recording';
+    const vcIsProcessing = vcPhase === 'processing';
+    const vcIsPlaying = vcPhase === 'playing';
+    const vcIsError = vcPhase === 'error';
+
+    return (
+      <View style={styles.screen}>
+        <ScrollView contentContainerStyle={styles.container}>
+          {/* Header */}
+          <View style={styles.vcHeader}>
+            <View style={styles.vcBadge}>
+              <Text style={styles.vcBadgeText}>🎙 Voice Chat · Pro</Text>
+            </View>
+            <Text style={styles.vcSubtitle}>Speak naturally — Max will respond with his voice</Text>
+          </View>
+
+          {/* Max avatar showing playing state */}
+          <MaxAvatar
+            isThinking={vcIsProcessing}
+            message={
+              vcIsPlaying
+                ? '🔊 Speaking...'
+                : vcLastResult
+                ? vcLastResult.aiResponseText
+                : 'Press the mic and speak. I\'ll respond with my voice!'
+            }
+          />
+
+          {/* Conversation history (last 4 exchanges) */}
+          {vcHistory.length > 0 && (
+            <View style={styles.conversationHistory}>
+              {vcHistory.slice(-4).map((msg, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.chatBubble,
+                    msg.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAI,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.chatText,
+                      msg.role === 'user' ? styles.chatTextUser : styles.chatTextAI,
+                    ]}
+                  >
+                    {msg.content}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Score from last turn */}
+          {vcLastResult && (
+            <View style={styles.vcScoreRow}>
+              <Text style={styles.vcScoreText}>
+                Score: {vcLastResult.overallScore}/100  ·  +{Math.round(vcLastResult.fpMultiplier * 10)} FP
+              </Text>
+            </View>
+          )}
+
+          <Waveform isActive={vcIsRecording} />
+
+          {/* Mic control */}
+          {vcIsProcessing || vcIsPlaying ? (
+            <View style={styles.processingContainer}>
+              <ActivityIndicator color={Colors.primary} size="large" />
+              <Text style={styles.processingText}>
+                {vcIsProcessing ? 'Max is listening...' : '🔊 Max is speaking...'}
+              </Text>
+            </View>
+          ) : (
+            <Pressable
+              onPress={async () => {
+                if (vcIsRecording) {
+                  await vcEndTurn();
+                } else {
+                  await vcStartTurn();
+                }
+              }}
+              style={({ pressed }) => [
+                styles.micButton,
+                vcIsRecording && styles.micButtonRecording,
+                pressed && styles.micButtonPressed,
+              ]}
+            >
+              <Text style={styles.micEmoji}>{vcIsRecording ? '⏹' : '🎙️'}</Text>
+              <Text style={styles.micLabel}>
+                {vcIsRecording ? 'Tap to send' : 'Tap to speak'}
+              </Text>
+            </Pressable>
+          )}
+
+          {/* Pro paywall fallback */}
+          {vcProRequired && (
+            <TouchableOpacity
+              onPress={() => router.push('/subscribe')}
+              style={styles.vcPaywallBtn}
+            >
+              <Text style={styles.vcPaywallText}>Upgrade to Pro for Voice Chat →</Text>
+            </TouchableOpacity>
+          )}
+
+          {vcIsError && !vcProRequired && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>Connection error — please try again</Text>
+            </View>
+          )}
+
+          {/* Exit to standard mode */}
+          <TouchableOpacity onPress={handleRetry} style={styles.vcExitBtn}>
+            <Text style={styles.vcExitText}>Switch to Standard Mode</Text>
+          </TouchableOpacity>
+        </ScrollView>
       </View>
     );
   }
@@ -958,5 +1116,90 @@ const styles = StyleSheet.create({
   },
   chatTextAI: {
     color: Colors.text.primary,
+  },
+  // Mode toggle (Standard / Voice Chat)
+  modeToggleRow: {
+    flexDirection: 'row',
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 99, 255, 0.2)',
+    overflow: 'hidden',
+    width: '100%',
+  },
+  modeToggleBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  modeToggleActive: {
+    backgroundColor: Colors.primary,
+  },
+  modeToggleText: {
+    color: Colors.text.secondary,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modeToggleTextActive: {
+    color: '#fff',
+  },
+  // Voice Chat phase
+  vcHeader: {
+    alignItems: 'center',
+    gap: 6,
+    width: '100%',
+  },
+  vcBadge: {
+    backgroundColor: 'rgba(108, 99, 255, 0.2)',
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 99, 255, 0.4)',
+  },
+  vcBadgeText: {
+    color: Colors.primaryLight,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  vcSubtitle: {
+    color: Colors.text.muted,
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  vcScoreRow: {
+    backgroundColor: 'rgba(255, 215, 0, 0.08)',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: `${Colors.accent}30`,
+  },
+  vcScoreText: {
+    color: Colors.accent,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  vcPaywallBtn: {
+    backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    width: '100%',
+    alignItems: 'center',
+  },
+  vcPaywallText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  vcExitBtn: {
+    paddingVertical: 8,
+  },
+  vcExitText: {
+    color: Colors.text.muted,
+    fontSize: 12,
+    textDecorationLine: 'underline',
   },
 });
