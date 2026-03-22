@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useUserStore } from '../store/userStore';
+import { apiPost } from '../services/api';
 
 export type SessionPhase = 'intro' | 'recording' | 'scored' | 'conversation' | 'complete';
 
@@ -70,6 +71,7 @@ export function useSpeakingSession(
   const [state, setState] = useState<SessionState>(INITIAL_STATE);
   const token = useUserStore((s) => s.token);
   const setUser = useUserStore((s) => s.setUser);
+  const nativeLang = useUserStore((s) => s.nativeLang);
 
   const setPhase = useCallback((phase: SessionPhase) => {
     setState((prev) => ({ ...prev, phase }));
@@ -134,6 +136,31 @@ export function useSpeakingSession(
           streak: result.new_streak,
         });
 
+        // Translate coaching feedback to user's native language (non-blocking)
+        let grammarFeedback = result.grammar_feedback;
+        let vocabularySuggestions = result.vocabulary_suggestions;
+        if (nativeLang && nativeLang !== 'en' && token) {
+          try {
+            interface TranslateCoachingResponse {
+              grammar_feedback: string;
+              vocabulary_suggestions: string;
+            }
+            const translated = await apiPost<TranslateCoachingResponse>(
+              '/translate/coaching',
+              {
+                grammar_feedback: result.grammar_feedback,
+                vocabulary_suggestions: result.vocabulary_suggestions,
+                target_lang: nativeLang,
+              },
+              token
+            );
+            grammarFeedback = translated.grammar_feedback;
+            vocabularySuggestions = translated.vocabulary_suggestions;
+          } catch {
+            // Translation failed — use English feedback (non-blocking)
+          }
+        }
+
         // Append transcript + AI response to conversation history
         const updatedHistory: ConversationMessage[] = [
           ...state.conversationHistory,
@@ -148,8 +175,8 @@ export function useSpeakingSession(
           fluencyScore: result.fluency_score,
           fpEarned: prev.fpEarned + result.fp_earned,
           aiResponse: result.nim_response,
-          grammarFeedback: result.grammar_feedback,
-          vocabularySuggestions: result.vocabulary_suggestions,
+          grammarFeedback: grammarFeedback,
+          vocabularySuggestions: vocabularySuggestions,
           conversationHistory: updatedHistory,
           transcript: result.transcript,
           levelUpMessage: result.level_up_message,
@@ -162,7 +189,7 @@ export function useSpeakingSession(
         setState((prev) => ({ ...prev, isLoading: false, error: message }));
       }
     },
-    [token, lessonId, targetPhrase, state.conversationHistory, setUser]
+    [token, lessonId, targetPhrase, state.conversationHistory, setUser, nativeLang]
   );
 
   const startSession = useCallback(() => {

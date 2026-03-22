@@ -15,6 +15,8 @@ export interface UserState {
   isPro: boolean;
   token: string | null;
   lastActivityDate: string | null;
+  /** User's native language for coaching translation. "en" = no translation. */
+  nativeLang: string;
 }
 
 export interface UserActions {
@@ -36,6 +38,7 @@ const initialState: UserState = {
   isPro: false,
   token: null,
   lastActivityDate: null,
+  nativeLang: 'en',  // default: no translation
 };
 
 export const useUserStore = create<UserState & UserActions>()(

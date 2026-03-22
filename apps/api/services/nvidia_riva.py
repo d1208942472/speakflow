@@ -1,4 +1,10 @@
-"""NVIDIA Riva Cloud API — ASR + pronunciation scoring"""
+"""NVIDIA Riva Cloud API — ASR + pronunciation scoring
+
+ASR Model Options (configurable via RIVA_ASR_FUNCTION_ID env var):
+  - Standard English (default): 1598d209-5e27-4d3c-8079-4751568b1081
+  - Parakeet CTC 1.1B (best accuracy): set RIVA_ASR_FUNCTION_ID to parakeet-ctc function ID
+  - Parakeet Multilingual (25 langs): set RIVA_ASR_MULTILINGUAL_FUNCTION_ID
+"""
 import os
 import base64
 import httpx
@@ -17,9 +23,58 @@ class NvidiaRivaService:
     def __init__(self):
         self.api_key = os.environ.get("NVIDIA_API_KEY", "PENDING")
         self.base_url = "https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions"
+        # Primary ASR: configurable. Default = standard Riva English ASR
         self.asr_function_id = os.environ.get(
             "RIVA_ASR_FUNCTION_ID", "1598d209-5e27-4d3c-8079-4751568b1081"
         )
+        # Multilingual ASR: parakeet-1.1b-rnnt-multilingual (25 languages)
+        self.asr_multilingual_function_id = os.environ.get(
+            "RIVA_ASR_MULTILINGUAL_FUNCTION_ID",
+            self.asr_function_id,  # fallback to primary if not set
+        )
+
+    async def transcribe_audio_multilingual(
+        self, audio_bytes: bytes, language_code: str = "en-US", audio_format: str = "wav"
+    ) -> str:
+        """Transcribe using multilingual ASR model (parakeet-1.1b-rnnt-multilingual).
+
+        Supports 25 languages including zh-CN, ja-JP, ko-KR, es-ES, fr-FR, de-DE, etc.
+        Falls back to standard ASR if multilingual model is not configured.
+        """
+        url = f"{self.base_url}/{self.asr_multilingual_function_id}"
+        audio_b64 = base64.b64encode(audio_bytes).decode("utf-8")
+
+        payload = {
+            "audio": audio_b64,
+            "audio_format": audio_format,
+            "language_code": language_code,
+            "profanity_filter": False,
+            "enable_automatic_punctuation": True,
+        }
+
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        }
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            try:
+                response = await client.post(url, json=payload, headers=headers)
+                response.raise_for_status()
+                data = response.json()
+                results = data.get("results", [])
+                if results:
+                    alternatives = results[0].get("alternatives", [])
+                    if alternatives:
+                        return alternatives[0].get("transcript", "")
+                return ""
+            except httpx.HTTPStatusError as e:
+                raise RuntimeError(
+                    f"Riva multilingual ASR error: {e.response.status_code} — {e.response.text}"
+                ) from e
+            except httpx.RequestError as e:
+                raise RuntimeError(f"Riva multilingual ASR connection error: {e}") from e
 
     async def transcribe_audio(self, audio_bytes: bytes, audio_format: str = "wav") -> str:
         """POST to Riva ASR endpoint and return transcript string."""

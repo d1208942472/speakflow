@@ -120,6 +120,55 @@ async def score_pronunciation(
     return result
 
 
+SUPPORTED_LANGUAGES = {
+    "en-US", "en-GB", "zh-CN", "zh-TW", "ja-JP", "ko-KR",
+    "es-ES", "es-MX", "fr-FR", "de-DE", "it-IT", "pt-BR",
+    "ru-RU", "ar-AE", "hi-IN", "nl-NL", "pl-PL", "sv-SE",
+    "tr-TR", "vi-VN", "id-ID", "th-TH", "cs-CZ", "da-DK",
+    "fi-FI",
+}
+
+
+@router.post("/transcribe-multilingual", response_model=TranscribeResponse)
+async def transcribe_audio_multilingual(
+    audio: UploadFile = File(...),
+    audio_format: str = Form(default="wav"),
+    language_code: str = Form(default="en-US"),
+    current_user=Depends(get_current_user),
+):
+    """
+    Transcribe uploaded audio using NVIDIA Parakeet multilingual ASR (25 languages).
+    Accepts language codes like en-US, zh-CN, ja-JP, ko-KR, es-ES, fr-FR, de-DE, etc.
+    """
+    if language_code not in SUPPORTED_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported language '{language_code}'. Supported: {sorted(SUPPORTED_LANGUAGES)}",
+        )
+
+    audio_bytes = await audio.read()
+    if len(audio_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty audio file")
+
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Audio file too large (max 25MB)")
+
+    try:
+        transcript = await riva_service.transcribe_audio_multilingual(
+            audio_bytes=audio_bytes,
+            language_code=language_code,
+            audio_format=audio_format.lower(),
+        )
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return TranscribeResponse(
+        transcript=transcript,
+        audio_format=audio_format.lower(),
+        duration_hint=f"~{len(audio_bytes) // 16000}s",
+    )
+
+
 class SynthesizeRequest(BaseModel):
     text: str
     voice: str = "male-1"
