@@ -14,6 +14,7 @@ import { StreakBanner } from '../../components/StreakBanner';
 import { LessonCard, type Lesson } from '../../components/LessonCard';
 import { useUserStore } from '../../store/userStore';
 import { apiGet } from '../../services/api';
+import { useRecommendations } from '../../hooks/useRecommendations';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -90,6 +91,7 @@ export default function LearnTab(): React.JSX.Element {
   const username = useUserStore((s) => s.username);
   const greeting = useMemo(() => getGreeting(), []);
   const { lessons, isLoading: lessonsLoading } = useApiLessons();
+  const { recommendations, loading: recLoading } = useRecommendations(3);
 
   const firstLessonByScenario = useMemo(() => {
     const map: Record<string, string> = {};
@@ -130,6 +132,46 @@ export default function LearnTab(): React.JSX.Element {
 
         {/* Streak Banner */}
         <StreakBanner />
+
+        {/* AI Recommendations (NVIDIA NIM Embeddings) */}
+        {(recLoading || recommendations.length > 0) && (
+          <View>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>✨ Recommended for You</Text>
+              <Text style={styles.sectionBadge}>AI-Powered</Text>
+            </View>
+            {recLoading ? (
+              <ActivityIndicator color={Colors.primary} style={{ marginVertical: 8 }} />
+            ) : (
+              recommendations.map((rec) => (
+                <TouchableOpacity
+                  key={rec.id}
+                  style={styles.recCard}
+                  onPress={() => router.push(`/lesson/${rec.id}`)}
+                  activeOpacity={0.8}
+                >
+                  <View style={styles.recCardTop}>
+                    <Text style={styles.recTitle}>{rec.title}</Text>
+                    {rec.isProOnly && (
+                      <View style={styles.recProBadge}>
+                        <Text style={styles.recProText}>PRO</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.recReason}>{rec.reason}</Text>
+                  <View style={styles.recMeta}>
+                    <Text style={styles.recMetaText}>
+                      Level {rec.level} · ⚡ {rec.fpReward} FP
+                    </Text>
+                    <Text style={styles.recScore}>
+                      {Math.round(rec.relevanceScore * 100)}% match
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        )}
 
         {/* Daily Challenge CTA */}
         <TouchableOpacity
@@ -303,5 +345,75 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 20,
+  },
+  // AI Recommendation cards
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  sectionBadge: {
+    color: Colors.primaryLight,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    backgroundColor: 'rgba(108, 99, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(108, 99, 255, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  recCard: {
+    backgroundColor: Colors.card,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(108, 99, 255, 0.2)',
+    gap: 6,
+  },
+  recCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  recTitle: {
+    color: Colors.text.primary,
+    fontSize: 15,
+    fontWeight: '700',
+    flex: 1,
+  },
+  recProBadge: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  recProText: {
+    color: '#000',
+    fontSize: 9,
+    fontWeight: '800',
+  },
+  recReason: {
+    color: Colors.text.secondary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  recMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  recMetaText: {
+    color: Colors.text.muted,
+    fontSize: 11,
+  },
+  recScore: {
+    color: Colors.primary,
+    fontSize: 11,
+    fontWeight: '700',
   },
 });
