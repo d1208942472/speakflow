@@ -7,11 +7,29 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { useUserStore, type LeagueTier } from '../../store/userStore';
 import { supabase } from '../../services/supabase';
+
+// NVIDIA Riva Translate supported languages (12 languages + English)
+const NATIVE_LANGUAGES = [
+  { code: 'en', label: 'English (no translation)', flag: '🇺🇸' },
+  { code: 'zh', label: '中文 (Chinese)', flag: '🇨🇳' },
+  { code: 'ja', label: '日本語 (Japanese)', flag: '🇯🇵' },
+  { code: 'ko', label: '한국어 (Korean)', flag: '🇰🇷' },
+  { code: 'es', label: 'Español (Spanish)', flag: '🇪🇸' },
+  { code: 'fr', label: 'Français (French)', flag: '🇫🇷' },
+  { code: 'de', label: 'Deutsch (German)', flag: '🇩🇪' },
+  { code: 'pt', label: 'Português (Portuguese)', flag: '🇧🇷' },
+  { code: 'ru', label: 'Русский (Russian)', flag: '🇷🇺' },
+  { code: 'ar', label: 'العربية (Arabic)', flag: '🇸🇦' },
+  { code: 'hi', label: 'हिंदी (Hindi)', flag: '🇮🇳' },
+  { code: 'it', label: 'Italiano (Italian)', flag: '🇮🇹' },
+  { code: 'nl', label: 'Nederlands (Dutch)', flag: '🇳🇱' },
+];
 
 const LEAGUE_LABELS: Record<LeagueTier, string> = {
   bronze: 'Bronze',
@@ -82,6 +100,11 @@ export default function ProfileTab(): React.JSX.Element {
   const league = useUserStore((s) => s.league);
   const isPro = useUserStore((s) => s.isPro);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
+  const nativeLang = useUserStore((s) => s.nativeLang);
+  const setUser = useUserStore((s) => s.setUser);
+
+  const currentLang = NATIVE_LANGUAGES.find((l) => l.code === nativeLang) ?? NATIVE_LANGUAGES[0];
 
   // Lessons completed is stored in the profile; we approximate from store
   const lessonsCompleted = 0; // Pulled from Supabase profile in a real impl
@@ -200,9 +223,12 @@ export default function ProfileTab(): React.JSX.Element {
 
           <View style={styles.separator} />
 
-          <TouchableOpacity style={styles.actionRow} onPress={() => {}}>
-            <Text style={styles.actionEmoji}>🌐</Text>
-            <Text style={styles.actionLabel}>Language</Text>
+          <TouchableOpacity style={styles.actionRow} onPress={() => setShowLangPicker(true)}>
+            <Text style={styles.actionEmoji}>{currentLang.flag}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionLabel}>Coaching Language</Text>
+              <Text style={styles.actionSubLabel}>{currentLang.label}</Text>
+            </View>
             <Text style={styles.actionArrow}>›</Text>
           </TouchableOpacity>
 
@@ -229,10 +255,62 @@ export default function ProfileTab(): React.JSX.Element {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.version}>SpeakFlow v1.0.0</Text>
+        <Text style={styles.version}>SpeakFlow v1.5.0 · Powered by NVIDIA AI</Text>
 
         <View style={styles.bottomPad} />
       </ScrollView>
+
+      {/* Language Picker Modal */}
+      <Modal
+        visible={showLangPicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowLangPicker(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Coaching Language</Text>
+              <Text style={styles.modalSubtitle}>
+                Grammar feedback will be translated by NVIDIA Riva Translate
+              </Text>
+            </View>
+            <ScrollView style={styles.langList} showsVerticalScrollIndicator={false}>
+              {NATIVE_LANGUAGES.map((lang) => (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    styles.langRow,
+                    lang.code === nativeLang && styles.langRowActive,
+                  ]}
+                  onPress={() => {
+                    setUser({ nativeLang: lang.code });
+                    setShowLangPicker(false);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.langFlag}>{lang.flag}</Text>
+                  <Text style={[
+                    styles.langLabel,
+                    lang.code === nativeLang && styles.langLabelActive,
+                  ]}>
+                    {lang.label}
+                  </Text>
+                  {lang.code === nativeLang && (
+                    <Text style={styles.langCheck}>✓</Text>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowLangPicker(false)}
+            >
+              <Text style={styles.modalCloseText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -405,5 +483,86 @@ const styles = StyleSheet.create({
   },
   bottomPad: {
     height: 8,
+  },
+  actionSubLabel: {
+    color: Colors.text.muted,
+    fontSize: 11,
+    marginTop: 1,
+  },
+  // Language picker modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: Colors.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: '75%',
+  },
+  modalHeader: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  modalTitle: {
+    color: Colors.text.primary,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    color: Colors.text.muted,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  langList: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    gap: 12,
+  },
+  langRowActive: {
+    backgroundColor: 'rgba(108, 99, 255, 0.12)',
+  },
+  langFlag: {
+    fontSize: 22,
+  },
+  langLabel: {
+    flex: 1,
+    color: Colors.text.secondary,
+    fontSize: 14,
+  },
+  langLabelActive: {
+    color: Colors.text.primary,
+    fontWeight: '600',
+  },
+  langCheck: {
+    color: Colors.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  modalClose: {
+    marginTop: 8,
+    marginHorizontal: 20,
+    backgroundColor: Colors.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  modalCloseText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });
