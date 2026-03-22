@@ -21,8 +21,9 @@ class ConversationFeedback(BaseModel):
 
 class NvidiaNimService:
     def __init__(self):
+        api_key = os.environ.get("NVIDIA_NIM_API_KEY") or os.environ.get("NVIDIA_API_KEY", "PENDING")
         self.client = AsyncOpenAI(
-            api_key=os.environ["NVIDIA_NIM_API_KEY"],
+            api_key=api_key,
             base_url="https://integrate.api.nvidia.com/v1",
         )
         self.model = "meta/llama-3.1-70b-instruct"

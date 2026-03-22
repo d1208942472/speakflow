@@ -15,7 +15,7 @@ class PronunciationResult(BaseModel):
 
 class NvidiaRivaService:
     def __init__(self):
-        self.api_key = os.environ["NVIDIA_API_KEY"]
+        self.api_key = os.environ.get("NVIDIA_API_KEY", "PENDING")
         self.base_url = "https://api.nvcf.nvidia.com/v2/nvcf/pexec/functions"
         self.asr_function_id = os.environ.get(
             "RIVA_ASR_FUNCTION_ID", "1598d209-5e27-4d3c-8079-4751568b1081"
