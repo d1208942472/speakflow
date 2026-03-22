@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,6 @@ import {
   Animated,
   Pressable,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
 import { Colors } from '../../constants/Colors';
@@ -17,8 +16,9 @@ import { MaxAvatar } from '../../components/MaxAvatar';
 import { useRecording } from '../../hooks/useRecording';
 import { useSpeakingSession } from '../../hooks/useSpeakingSession';
 import { useUserStore } from '../../store/userStore';
+import { apiGet } from '../../services/api';
 
-// --- Static lesson data (in production, fetched from API) ---
+// --- Lesson data fetched from API ---
 interface LessonData {
   id: string;
   title: string;
@@ -31,99 +31,39 @@ interface LessonData {
   instructions: string;
 }
 
-const LESSONS_MAP: Record<string, LessonData> = {
-  'interview-001': {
-    id: 'interview-001',
-    title: 'Tell Me About Yourself',
-    scenario: 'Job Interview',
-    targetPhrase: 'I have over five years of experience in software development, specializing in building scalable web applications.',
-    systemPrompt:
-      'You are a professional interviewer at a top tech company. Conduct a realistic job interview in English. Ask follow-up questions about experience, skills, and achievements. Be encouraging but professional.',
-    level: 1,
-    fpReward: 20,
-    isProOnly: false,
-    instructions:
-      'Introduce yourself professionally. Mention your experience, key skills, and what you bring to the role.',
-  },
-  'interview-002': {
-    id: 'interview-002',
-    title: 'Strengths and Weaknesses',
-    scenario: 'Job Interview',
-    targetPhrase: 'My greatest strength is my ability to learn quickly and adapt to new technologies. As for a weakness, I am working on delegating tasks more effectively.',
-    systemPrompt:
-      'You are a senior HR manager conducting a behavioral interview. Ask about strengths, weaknesses, and how the candidate has grown professionally. Use STAR method follow-ups.',
-    level: 2,
-    fpReward: 25,
-    isProOnly: false,
-    instructions:
-      'Discuss one clear strength and one genuine weakness with a growth plan. Be specific and authentic.',
-  },
-  'presentation-001': {
-    id: 'presentation-001',
-    title: 'Opening a Presentation',
-    scenario: 'Presentations',
-    targetPhrase: 'Good morning everyone. Thank you for joining me today. I would like to talk to you about our Q3 results and the exciting opportunities ahead.',
-    systemPrompt:
-      'You are an audience member at a business presentation. Ask clarifying questions and provide feedback to help the presenter improve their opening.',
-    level: 1,
-    fpReward: 20,
-    isProOnly: false,
-    instructions:
-      'Open with a strong greeting, thank the audience, and state your presentation topic clearly.',
-  },
-  'presentation-002': {
-    id: 'presentation-002',
-    title: 'Handling Q&A',
-    scenario: 'Presentations',
-    targetPhrase: 'That is an excellent question. Based on our data, the ROI exceeded projections by 15%, primarily driven by the new product line launch.',
-    systemPrompt:
-      'You are a skeptical board member asking tough questions after a business presentation. Challenge assumptions and request data-backed answers.',
-    level: 3,
-    fpReward: 30,
-    isProOnly: true,
-    instructions:
-      'Answer confidently using data. If unsure, acknowledge it and commit to follow up.',
-  },
-  'smalltalk-001': {
-    id: 'smalltalk-001',
-    title: 'Breaking the Ice',
-    scenario: 'Small Talk',
-    targetPhrase: 'It is great to meet you. I heard this is your first time attending the conference. What brings you here?',
-    systemPrompt:
-      'You are a friendly professional at a business networking event. Engage in warm small talk, share a bit about yourself, and ask questions to build rapport.',
-    level: 1,
-    fpReward: 15,
-    isProOnly: false,
-    instructions:
-      'Start a friendly conversation. Make the other person feel welcome and keep the energy positive.',
-  },
-  'email-001': {
-    id: 'email-001',
-    title: 'Follow-Up Email',
-    scenario: 'Email Writing',
-    targetPhrase: 'I wanted to follow up on our meeting last Thursday regarding the partnership proposal. Have you had a chance to review the terms we discussed?',
-    systemPrompt:
-      'You are a business partner reviewing a follow-up. Respond naturally and ask for clarifications where needed.',
-    level: 2,
-    fpReward: 20,
-    isProOnly: true,
-    instructions:
-      'Write a concise, professional follow-up. Reference the previous meeting and include a clear call to action.',
-  },
-  'negotiation-001': {
-    id: 'negotiation-001',
-    title: 'Stating Your Position',
-    scenario: 'Negotiation',
-    targetPhrase: 'We believe our proposal reflects fair market value. However, we are open to discussing payment terms that work for both parties.',
-    systemPrompt:
-      'You are a tough but fair negotiator. Push back on the other side\'s position, test their limits, but remain open to mutually beneficial compromise.',
-    level: 3,
-    fpReward: 35,
-    isProOnly: true,
-    instructions:
-      'State your position clearly and confidently. Signal openness to negotiation without conceding too quickly.',
-  },
+const SCENARIO_DISPLAY: Record<string, string> = {
+  job_interview: 'Job Interview',
+  presentation: 'Presentations',
+  small_talk: 'Small Talk',
+  email: 'Email Writing',
+  negotiation: 'Negotiation',
 };
+
+interface ApiLessonResponse {
+  id: string;
+  scenario: string;
+  level: number;
+  title: string;
+  description: string;
+  target_phrases: string[];
+  conversation_system_prompt: string;
+  fp_reward: number;
+  is_pro_only: boolean;
+}
+
+function mapApiLesson(data: ApiLessonResponse): LessonData {
+  return {
+    id: data.id,
+    title: data.title,
+    scenario: SCENARIO_DISPLAY[data.scenario] ?? data.scenario,
+    targetPhrase: data.target_phrases?.[0] ?? 'Speak naturally and clearly.',
+    systemPrompt: data.conversation_system_prompt,
+    level: data.level,
+    fpReward: data.fp_reward,
+    isProOnly: data.is_pro_only,
+    instructions: data.description,
+  };
+}
 
 // --- Waveform Visualization ---
 function Waveform({ isActive }: { isActive: boolean }): React.JSX.Element {
@@ -268,13 +208,59 @@ export default function LessonScreen(): React.JSX.Element {
   const router = useRouter();
   const navigation = useNavigation();
   const isPro = useUserStore((s) => s.isPro);
+  const token = useUserStore((s) => s.token);
 
-  const lesson = LESSONS_MAP[id ?? ''] ?? LESSONS_MAP['interview-001'];
+  const [lesson, setLesson] = useState<LessonData | null>(null);
+  const [lessonLoading, setLessonLoading] = useState(true);
+  const [lessonError, setLessonError] = useState<string | null>(null);
 
-  // Update header title
+  const fetchLesson = useCallback(async () => {
+    if (!id || !token) return;
+    setLessonLoading(true);
+    setLessonError(null);
+    try {
+      const data = await apiGet<ApiLessonResponse>(`/lessons/${id}`, token);
+      setLesson(mapApiLesson(data));
+    } catch (e) {
+      setLessonError('Could not load lesson. Please try again.');
+    } finally {
+      setLessonLoading(false);
+    }
+  }, [id, token]);
+
   useEffect(() => {
-    navigation.setOptions({ title: lesson.scenario });
-  }, [navigation, lesson.scenario]);
+    fetchLesson();
+  }, [fetchLesson]);
+
+  // Update header title once lesson is loaded
+  useEffect(() => {
+    if (lesson) {
+      navigation.setOptions({ title: lesson.scenario });
+    }
+  }, [navigation, lesson]);
+
+  // Show loading state while fetching lesson
+  if (lessonLoading) {
+    return (
+      <View style={[styles.screen, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator color={Colors.primary} size="large" />
+        <Text style={{ color: Colors.text.secondary, marginTop: 12 }}>Loading lesson...</Text>
+      </View>
+    );
+  }
+
+  if (lessonError || !lesson) {
+    return (
+      <View style={[styles.screen, { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }]}>
+        <Text style={{ color: Colors.danger, fontSize: 16, textAlign: 'center', marginBottom: 16 }}>
+          {lessonError ?? 'Lesson not found'}
+        </Text>
+        <TouchableOpacity onPress={fetchLesson} style={{ backgroundColor: Colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}>
+          <Text style={{ color: '#fff', fontWeight: '700' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // Paywall check
   const isLocked = lesson.isProOnly && !isPro;
