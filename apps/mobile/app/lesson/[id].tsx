@@ -15,6 +15,7 @@ import { ScoreRing } from '../../components/ScoreRing';
 import { MaxAvatar } from '../../components/MaxAvatar';
 import { useRecording } from '../../hooks/useRecording';
 import { useSpeakingSession } from '../../hooks/useSpeakingSession';
+import { useTTS } from '../../hooks/useTTS';
 import { useUserStore } from '../../store/userStore';
 import { apiGet } from '../../services/api';
 
@@ -276,7 +277,22 @@ export default function LessonScreen(): React.JSX.Element {
   const { state: session, startSession, submitRecording, resetSession } =
     useSpeakingSession(lesson.id, lesson.targetPhrase, lesson.systemPrompt);
 
+  const { speak, stop: stopTTS, isSpeaking: ttsPlaying } = useTTS();
+
   const [hasSubmitted, setHasSubmitted] = useState(false);
+
+  // Auto-play Max's voice when AI response arrives
+  const lastAiResponse = useRef<string>('');
+  useEffect(() => {
+    if (
+      session.aiResponse &&
+      session.aiResponse !== lastAiResponse.current &&
+      !session.isLoading
+    ) {
+      lastAiResponse.current = session.aiResponse;
+      speak(session.aiResponse);
+    }
+  }, [session.aiResponse, session.isLoading, speak]);
 
   // Auto-submit when recording finishes
   useEffect(() => {
@@ -309,9 +325,11 @@ export default function LessonScreen(): React.JSX.Element {
   };
 
   const handleRetry = (): void => {
+    stopTTS();
     resetSession();
     resetRecording();
     setHasSubmitted(false);
+    lastAiResponse.current = '';
   };
 
   // --- Phase: Intro ---
@@ -431,6 +449,11 @@ export default function LessonScreen(): React.JSX.Element {
           <MaxAvatar
             message={session.aiResponse || 'Great effort! Keep practicing to improve your fluency.'}
           />
+          {ttsPlaying && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -8, marginBottom: 4 }}>
+              <Text style={{ color: Colors.primary, fontSize: 12 }}>🔊 Max is speaking...</Text>
+            </View>
+          )}
 
           {session.grammarFeedback ? (
             <View style={styles.feedbackCard}>

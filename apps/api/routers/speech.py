@@ -1,9 +1,11 @@
-"""Speech router — POST /speech/score, POST /speech/transcribe"""
+"""Speech router — POST /speech/score, POST /speech/transcribe, POST /speech/synthesize"""
 from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel
 
 from dependencies import get_current_user
 from services.nvidia_riva import riva_service, PronunciationResult
+from services.nvidia_tts import tts_service
 
 router = APIRouter(prefix="/speech", tags=["speech"])
 
@@ -116,3 +118,55 @@ async def score_pronunciation(
         raise HTTPException(status_code=502, detail=str(e))
 
     return result
+
+
+class SynthesizeRequest(BaseModel):
+    text: str
+    voice: str = "male-1"
+
+
+@router.post("/synthesize")
+async def synthesize_speech(
+    request: SynthesizeRequest,
+    current_user=Depends(get_current_user),
+):
+    """
+    Convert text to speech using NVIDIA Magpie TTS (Max's coaching voice).
+    Returns mp3 audio bytes. Voice options: male-1, female-1, male-2, female-2.
+    Text is limited to 500 characters for coaching responses.
+    """
+    text = request.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="text cannot be empty")
+
+    if len(text) > 1000:
+        raise HTTPException(
+            status_code=400, detail="text too long (max 1000 characters)"
+        )
+
+    valid_voices = {"male-1", "female-1", "male-2", "female-2"}
+    if request.voice not in valid_voices:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid voice '{request.voice}'. Valid options: {valid_voices}",
+        )
+
+    try:
+        audio_bytes = await tts_service.synthesize(text, voice=request.voice)
+    except Exception as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"TTS service error: {str(e)}",
+        )
+
+    if not audio_bytes:
+        raise HTTPException(status_code=502, detail="TTS returned empty audio")
+
+    return Response(
+        content=audio_bytes,
+        media_type="audio/mpeg",
+        headers={
+            "Content-Disposition": "inline; filename=max-response.mp3",
+            "Content-Length": str(len(audio_bytes)),
+        },
+    )

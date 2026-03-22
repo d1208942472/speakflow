@@ -69,4 +69,26 @@ export async function apiPostForm<T>(
   return handleResponse<T>(response);
 }
 
+/**
+ * POST JSON and return raw response bytes (for audio endpoints like /speech/synthesize).
+ * Returns null if the request fails, so callers can degrade gracefully.
+ */
+export async function apiPostBinary(
+  path: string,
+  body: object,
+  token: string
+): Promise<ArrayBuffer | null> {
+  try {
+    const response = await fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: buildHeaders(token),
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) return null;
+    return response.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
 export { ApiError };

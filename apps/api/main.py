@@ -38,8 +38,12 @@ def health():
     """Health check endpoint."""
     return {
         "status": "ok",
-        "powered_by": "NVIDIA Riva + NVIDIA NIM (Llama 3.1 70B)",
-        "version": "1.0.0",
+        "powered_by": [
+            "NVIDIA Riva ASR (pronunciation scoring)",
+            "NVIDIA NIM — Llama 3.1 70B (conversation coaching)",
+            "NVIDIA Magpie TTS (Max's voice)",
+        ],
+        "version": "1.1.0",
     }
 
 
