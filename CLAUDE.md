@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 SpeakFlow is an NVIDIA-powered business English speaking coach. It's a monorepo with three apps:
 - **`apps/web`** — Next.js 14 marketing/subscription site (deployed on Vercel)
-- **`apps/api`** — FastAPI backend with NVIDIA Riva ASR + NIM (Llama 3.1 70B) (deployed on Railway)
+- **`apps/api`** — FastAPI backend with 7 NVIDIA services (deployed on Render)
 - **`apps/mobile`** — Expo React Native app (iOS/Android)
 
 ## Commands
@@ -48,6 +48,28 @@ npx supabase db push   # push migrations in supabase/migrations/
 ```
 
 ## Architecture
+
+### NVIDIA Services (7 total)
+| Service | Model | Purpose |
+|---------|-------|---------|
+| Riva ASR | parakeet-ctc-0.6b-en | Pronunciation scoring (en) |
+| Riva ASR Multilingual | parakeet-1.1b-rnnt-multilingual | 25-language transcription |
+| NIM LLM | meta/llama-3.1-70b-instruct | Conversation coaching + feedback |
+| Magpie TTS | nvidia/magpie-tts-flow | Max's voice (male-1) |
+| Riva Translate | nvidia/riva-translate-4b-instruct-v1_1 | 12-language coaching translation |
+| NIM Embeddings | nvidia/nv-embedqa-e5-v5 | Semantic lesson recommendations |
+| VoiceChat (Pro) | chained Riva→NIM→TTS | Full speech-to-speech for Pro |
+
+### API Routes
+- `POST /speech/transcribe` — pronunciation scoring via Riva
+- `POST /speech/transcribe-multilingual` — 25-language ASR
+- `POST /speech/synthesize` — TTS (returns `audio/mpeg` bytes)
+- `GET /translate/languages` + `POST /translate/text` + `POST /translate/coaching`
+- `POST /voicechat/turn` — Pro speech-to-speech pipeline
+- `GET /recommend/next-lesson` — NIM Embedding semantic recommendations
+- `POST /sessions/complete` — core scoring pipeline
+- `GET /lessons/` + `GET /lessons/{id}`
+- `POST /webhooks/revenuecat` + `POST /api/webhooks/stripe` (web)
 
 ### Session Completion Pipeline (Critical Path)
 `POST /sessions/complete` is the core flow — it chains three services in sequence:

@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import speech, conversation, lessons, users, sessions, webhooks, leagues, notifications, translate, voicechat
+from routers import speech, conversation, lessons, users, sessions, webhooks, leagues, notifications, translate, voicechat, recommend
 
 app = FastAPI(
     title="SpeakFlow API",
@@ -31,6 +31,7 @@ for router in [
     notifications.router,
     translate.router,
     voicechat.router,
+    recommend.router,
 ]:
     app.include_router(router)
 
@@ -47,8 +48,9 @@ def health():
             "NVIDIA Magpie TTS (Max's voice)",
             "NVIDIA Riva Translate (12 languages)",
             "NVIDIA Nemotron VoiceChat (Pro speech-to-speech)",
+            "NVIDIA NIM Embeddings nv-embedqa-e5-v5 (lesson recommendations)",
         ],
-        "version": "1.3.0",
+        "version": "1.4.0",
     }
 
 
