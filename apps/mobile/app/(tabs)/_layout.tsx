@@ -52,6 +52,22 @@ export default function TabsLayout(): React.JSX.Element {
         }}
       />
       <Tabs.Screen
+        name="analyze"
+        options={{
+          title: 'Analyze',
+          tabBarLabel: 'Analyze',
+          tabBarIcon: ({ color, size }) => (
+            <TabIcon emoji="🔬" color={color} size={size} />
+          ),
+          headerTitle: 'AI Slide Analyzer',
+          headerTitleStyle: {
+            color: Colors.text.primary,
+            fontSize: 18,
+            fontWeight: '800',
+          },
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',

@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 from dependencies import get_current_user, supabase
 from services.nvidia_nim import nim_service, ConversationFeedback, ConversationTurn
 from services.nvidia_guardrails import guardrails_service
+from services.nvidia_nemoguard import nemoguard_service
 
 router = APIRouter(prefix="/conversation", tags=["conversation"])
 
@@ -76,12 +77,30 @@ async def get_conversation_response(
                 detail="This lesson requires a Pro subscription",
             )
 
-    # Content safety check via Llama Guard 3 (non-blocking on API failure)
+    # Content safety check via Llama Guard 4 (non-blocking on API failure)
     is_safe, safety_reason = await guardrails_service.is_safe(request.user_message)
     if not is_safe:
         raise HTTPException(
             status_code=422,
             detail="Message violates content policy. Please keep conversations professional.",
+        )
+
+    # Topic control via NemoGuard (non-blocking — off-topic gets redirect, not 422)
+    on_topic, redirect_message = await nemoguard_service.check_topic(request.user_message)
+    if not on_topic and redirect_message:
+        # Return a redirect coaching response without calling the main LLM
+        from services.nvidia_nim import ConversationFeedback
+        redirect_feedback = ConversationFeedback(
+            response=redirect_message,
+            grammar_feedback="",
+            vocabulary_suggestions="",
+            fp_multiplier=1.0,
+            overall_score=100,
+        )
+        return ConversationResponse(
+            feedback=redirect_feedback,
+            lesson_title=lesson["title"],
+            lesson_scenario=lesson["scenario"],
         )
 
     try:

@@ -135,7 +135,7 @@ export default function BlogPage() {
         <div className="mt-16 bg-card border border-primary/30 rounded-3xl p-8 sm:p-12 text-center">
           <h2 className="text-2xl font-bold text-white mb-3">Get weekly English tips</h2>
           <p className="text-slate-400 mb-6 max-w-md mx-auto">
-            Join 10,000+ professionals getting our weekly business English tips delivered to their inbox.
+            Be the first to get our weekly business English tips and product updates.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
             <input

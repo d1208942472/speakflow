@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 def test_guardrails_service_init():
     from services.nvidia_guardrails import NvidiaGuardrailsService
     service = NvidiaGuardrailsService()
-    assert service.model == "meta/llama-guard-3-8b"
+    assert service.model == "meta/llama-guard-4-12b"
 
 
 @pytest.mark.asyncio

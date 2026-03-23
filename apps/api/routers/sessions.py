@@ -3,10 +3,13 @@ from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
+import asyncio
 from dependencies import get_current_user, supabase
 from services.nvidia_riva import riva_service
 from services.nvidia_nim import nim_service, ConversationTurn
 from services.gamification import GamificationService
+from services.nvidia_guardrails import guardrails_service
+from services.nvidia_reward import reward_service
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -108,23 +111,59 @@ async def complete_session(
             status_code=502, detail=f"Riva scoring error: {str(e)}"
         )
 
-    # Step 2: NIM conversation feedback
-    try:
-        nim_feedback = await nim_service.get_conversation_response(
-            lesson_system_prompt=lesson["conversation_system_prompt"],
-            conversation_history=conv_history,
-            user_message=pronunciation_result.transcript or target_phrase,
+    # Step 2: Safety check + NIM feedback + Nemotron reward scoring (parallel)
+    transcript_text = pronunciation_result.transcript or target_phrase
+
+    async def _get_nim_feedback():
+        try:
+            return await nim_service.get_conversation_response(
+                lesson_system_prompt=lesson["conversation_system_prompt"],
+                conversation_history=conv_history,
+                user_message=transcript_text,
+            )
+        except Exception:
+            from services.nvidia_nim import ConversationFeedback
+            return ConversationFeedback(
+                response="Great effort! Keep practicing.",
+                grammar_feedback="Analysis unavailable at this time.",
+                vocabulary_suggestions="Try using more professional business language.",
+                fp_multiplier=1.0,
+                overall_score=int(pronunciation_result.pronunciation_score),
+            )
+
+    async def _safety_check():
+        is_safe, _ = await guardrails_service.is_safe(transcript_text)
+        return is_safe
+
+    async def _reward_score():
+        return await reward_service.score_user_response(
+            user_response=transcript_text,
+            context_prompt=lesson.get("scenario", "Business English practice"),
         )
-    except Exception as e:
-        # NIM failure should not block the session — use defaults
+
+    # Run NIM feedback, safety check, and reward scoring in parallel
+    nim_feedback, is_safe, reward_result = await asyncio.gather(
+        _get_nim_feedback(),
+        _safety_check(),
+        _reward_score(),
+    )
+
+    # Safety: if transcript contains unsafe content, cap fp_multiplier
+    if not is_safe:
         from services.nvidia_nim import ConversationFeedback
-        nim_feedback = ConversationFeedback(
-            response="Great effort! Keep practicing.",
-            grammar_feedback="Analysis unavailable at this time.",
-            vocabulary_suggestions="Try using more professional business language.",
-            fp_multiplier=1.0,
-            overall_score=int(pronunciation_result.pronunciation_score),
+        nim_feedback.fp_multiplier = 0.5  # type: ignore[attr-defined]
+        nim_feedback.grammar_feedback = "Please keep your practice professional."  # type: ignore[attr-defined]
+
+    # Blend reward model score with NIM score (70/30 split)
+    final_overall_score = nim_feedback.overall_score
+    if reward_result is not None:
+        final_overall_score = int(
+            nim_feedback.overall_score * 0.7 +
+            reward_result["overall_score"] * 0.3
         )
+        # Boost fp_multiplier slightly for high reward scores
+        if reward_result.get("quality_tier") == "excellent" and nim_feedback.fp_multiplier < 2.0:
+            nim_feedback.fp_multiplier = min(2.0, nim_feedback.fp_multiplier * 1.1)  # type: ignore[attr-defined]
 
     # Step 3: Gamification
     gamification_service = GamificationService(supabase)
@@ -182,5 +221,5 @@ async def complete_session(
         shield_consumed=gamification_result.shield_consumed,
         league_rank=gamification_result.league_rank,
         level_up_message=gamification_result.level_up_message,
-        overall_nim_score=nim_feedback.overall_score,
+        overall_nim_score=final_overall_score,
     )

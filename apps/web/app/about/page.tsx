@@ -19,7 +19,6 @@ const milestones = [
   { year: '2024', event: 'Founded with a mission to democratize business English coaching' },
   { year: 'Q1 2025', event: 'Integrated NVIDIA Riva ASR for real-time pronunciation scoring' },
   { year: 'Q2 2025', event: 'Launched AI coach Max powered by NVIDIA NIM (Llama 3.1 70B)' },
-  { year: 'Q3 2025', event: 'Reached 10,000+ active professionals across 40 countries' },
   { year: 'Q4 2025', event: 'Joined NVIDIA Inception Program' },
   { year: '2026', event: 'Added multilingual support (25 languages) and TTS voice coaching' },
 ]

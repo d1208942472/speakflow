@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     template: '%s | SpeakFlow',
   },
   description:
-    'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA. Duolingo-style streaks, job interview prep, and negotiation practice. Used by 10,000+ non-native professionals.',
+    'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA. Duolingo-style streaks, job interview prep, and negotiation practice. Now in early access — free for founding members.',
   keywords: [
     'business English',
     'AI English coach',
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
     siteName: 'SpeakFlow',
     title: 'SpeakFlow — AI Business English Coach | Powered by NVIDIA',
     description:
-      'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA. Used by 10,000+ non-native professionals.',
+      'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA. Now in early access — free for founding members.',
     images: [
       {
         url: '/og-image.png',
@@ -137,12 +137,6 @@ export default function RootLayout({
                 billingIncrement: 'P1Y',
               },
             ],
-            aggregateRating: {
-              '@type': 'AggregateRating',
-              ratingValue: '4.8',
-              ratingCount: '2000',
-              bestRating: '5',
-            },
           })}
         </Script>
       </head>

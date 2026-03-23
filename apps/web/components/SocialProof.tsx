@@ -1,33 +1,36 @@
-const companies = [
-  { name: 'Google', abbr: 'G' },
-  { name: 'Microsoft', abbr: 'M' },
-  { name: 'Amazon', abbr: 'A' },
-  { name: 'Goldman Sachs', abbr: 'GS' },
-  { name: 'McKinsey', abbr: 'McK' },
-  { name: 'Meta', abbr: 'Meta' },
-  { name: 'Apple', abbr: 'Appl' },
+const industries = [
+  { name: 'Tech & Engineering', emoji: '💻' },
+  { name: 'Finance & Banking', emoji: '📈' },
+  { name: 'Sales & Business Dev', emoji: '🤝' },
+  { name: 'Healthcare', emoji: '🏥' },
+  { name: 'Academia & Research', emoji: '🎓' },
+  { name: 'Manufacturing', emoji: '🏭' },
 ]
 
-const stats = [
+const features = [
   {
-    value: '50K+',
-    label: 'Lessons Completed',
-    icon: '📚',
-  },
-  {
-    value: '4.8★',
-    label: 'App Rating',
-    icon: '⭐',
-  },
-  {
-    value: '89',
-    label: 'Countries',
-    icon: '🌍',
-  },
-  {
-    value: 'NVIDIA',
-    label: 'Powered',
+    value: '11',
+    label: 'NVIDIA AI Models',
     icon: '⚡',
+    color: 'text-nvidia',
+  },
+  {
+    value: '25',
+    label: 'Languages Supported',
+    icon: '🌍',
+    color: 'text-white',
+  },
+  {
+    value: '5',
+    label: 'Business Scenarios',
+    icon: '💼',
+    color: 'text-white',
+  },
+  {
+    value: 'Free',
+    label: 'Early Access Tier',
+    icon: '🚀',
+    color: 'text-primary',
   },
 ]
 
@@ -38,21 +41,22 @@ export function SocialProof() {
       <div className="absolute inset-0 bg-card/30" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
-        {/* Trusted by text */}
+        {/* Designed for text */}
         <div className="text-center">
           <p className="text-slate-500 text-sm font-medium uppercase tracking-widest mb-8">
-            Trusted by professionals from
+            Designed for non-native professionals in
           </p>
 
-          {/* Company logos (text-based) */}
-          <div className="flex flex-wrap justify-center items-center gap-8 lg:gap-12">
-            {companies.map((company) => (
+          {/* Industries */}
+          <div className="flex flex-wrap justify-center items-center gap-4 lg:gap-6">
+            {industries.map((industry) => (
               <div
-                key={company.name}
-                className="group flex items-center justify-center"
+                key={industry.name}
+                className="flex items-center gap-2 bg-card/50 border border-border/50 rounded-full px-4 py-2 hover:border-primary/30 transition-colors duration-200"
               >
-                <span className="text-slate-500 hover:text-slate-300 font-bold text-lg lg:text-xl tracking-tight transition-colors duration-200 select-none">
-                  {company.name}
+                <span>{industry.emoji}</span>
+                <span className="text-slate-400 hover:text-slate-300 font-medium text-sm transition-colors duration-200 select-none">
+                  {industry.name}
                 </span>
               </div>
             ))}
@@ -68,19 +72,13 @@ export function SocialProof() {
 
         {/* Stats row */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-          {stats.map((stat) => (
+          {features.map((stat) => (
             <div
               key={stat.label}
               className="flex flex-col items-center gap-1 p-4 rounded-2xl bg-card/50 border border-border/50 hover:border-primary/30 transition-colors duration-200"
             >
               <span className="text-2xl mb-1">{stat.icon}</span>
-              <span
-                className={`text-2xl lg:text-3xl font-extrabold ${
-                  stat.label === 'Powered'
-                    ? 'text-nvidia'
-                    : 'text-white'
-                }`}
-              >
+              <span className={`text-2xl lg:text-3xl font-extrabold ${stat.color}`}>
                 {stat.value}
               </span>
               <span className="text-slate-400 text-sm text-center">

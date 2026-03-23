@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: speakflow-api
+    runtime: python
+    region: oregon
+    plan: starter
+    rootDir: apps/api
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SUPABASE_URL
+        sync: false   # set manually in Render dashboard
+      - key: SUPABASE_SERVICE_KEY
+        sync: false   # set manually in Render dashboard
+      - key: NVIDIA_API_KEY
+        sync: false   # set manually in Render dashboard
+      - key: REVENUECAT_WEBHOOK_SECRET
+        sync: false   # set after RevenueCat setup
+      - key: ADMIN_SECRET
+        sync: false   # set manually in Render dashboard
+      - key: PYTHON_VERSION
+        value: "3.12"

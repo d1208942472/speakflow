@@ -1,20 +1,27 @@
-"""NVIDIA Llama Guard 3 — content safety for SpeakFlow conversations
+"""NVIDIA Llama Guard 4 — content safety for SpeakFlow conversations
 
-Uses meta/llama-guard-3-8b (FREE via NIM) to screen user speech transcripts
+Uses meta/llama-guard-4-12b (NIM) to screen user speech transcripts
 before they're sent to the main coaching model. This prevents coaching sessions
 from drifting into inappropriate content.
 
 Screening is non-blocking: if Llama Guard times out or fails, the session
 continues (safe > blocking). Only explicit policy violations are flagged.
 
-Policy: SAFE_CATEGORIES defines the hazards we screen for. Business English
+Llama Guard 4 improvements over 3-8b:
+- 12B parameters: more nuanced content understanding
+- Better multilingual coverage (25 languages — matches our Riva ASR)
+- Reduced false positives on edge cases
+- Supports image+text inputs (future vision integration)
+
+Policy: _UNSAFE_CATEGORIES defines the hazards we screen for. Business English
 coaching only needs: hate speech, violence, and sexual content filtering.
-The model returns "safe" / "unsafe S{category_id}" format.
+The model returns "safe" / "unsafe\nS{category_id}" format.
 """
 import os
 from openai import AsyncOpenAI
 
-# Llama Guard 3 hazard categories we care about (subset relevant to an edtech app)
+# Llama Guard 4 hazard categories we care about (subset relevant to an edtech app)
+# Full ML Commons taxonomy — we screen all by default for edtech safety
 _UNSAFE_CATEGORIES = """S1: Violent Crimes
 S2: Non-Violent Crimes
 S3: Sex Crimes
@@ -27,15 +34,16 @@ S9: Indiscriminate Weapons
 S10: Hate
 S11: Self-Harm
 S12: Sexual Content
-S13: Elections"""
+S13: Elections
+S14: Code Interpreter Abuse"""
 
 
 class NvidiaGuardrailsService:
     """
-    Lightweight content safety layer using NVIDIA Llama Guard 3.
+    Content safety layer using NVIDIA Llama Guard 4 (12B).
 
-    Designed for business English coaching: blocks hate speech, violence,
-    and sexual content. Allows all standard business conversation topics.
+    Upgraded from Llama Guard 3 (8B) for better multilingual accuracy
+    and lower false-positive rate on business English content.
     """
 
     def __init__(self):
@@ -44,7 +52,7 @@ class NvidiaGuardrailsService:
             api_key=api_key,
             base_url="https://integrate.api.nvidia.com/v1",
         )
-        self.model = "meta/llama-guard-3-8b"
+        self.model = "meta/llama-guard-4-12b"
         self.enabled = api_key not in ("PENDING", "")
 
     async def is_safe(self, user_message: str) -> tuple[bool, str]:

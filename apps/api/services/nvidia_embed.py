@@ -1,12 +1,18 @@
 """NVIDIA NIM Embeddings — semantic lesson recommendation for SpeakFlow
 
-Uses nvidia/nv-embedqa-e5-v5 (FREE via NIM OpenAI-compatible endpoint) to:
+Uses nvidia/llama-3.2-nv-embedqa-1b-v2 (NIM OpenAI-compatible endpoint) to:
 1. Embed user's learning profile (performance history, weak areas, scenario preferences)
 2. Embed lesson descriptions
 3. Rank lessons by cosine similarity → surface the most relevant next lesson
 
 This powers the /recommend/next-lesson endpoint — users get AI-selected lessons
 that match their current level and address their specific grammar/vocabulary gaps.
+
+Model: nvidia/llama-3.2-nv-embedqa-1b-v2
+- Max context: 8,192 tokens
+- Output dimensions: up to 2048 (Matryoshka embeddings)
+- Languages: 26 (matches our Riva ASR multilingual coverage)
+- `input_type` is REQUIRED: "query" for search, "passage" for documents
 """
 import os
 import math
@@ -15,7 +21,12 @@ from openai import AsyncOpenAI
 
 class NvidiaEmbedService:
     """
-    NVIDIA NIM embedding service using nv-embedqa-e5-v5.
+    NVIDIA NIM embedding service using llama-3.2-nv-embedqa-1b-v2.
+
+    Upgraded from nv-embedqa-e5-v5 for:
+    - 26-language multilingual support (matches Riva ASR languages)
+    - Configurable output dimensions (up to 2048)
+    - Longer context window (8,192 tokens)
 
     Supports two input_type modes per the model spec:
     - "query"   : embed the user profile/query
@@ -28,14 +39,14 @@ class NvidiaEmbedService:
             api_key=api_key,
             base_url="https://integrate.api.nvidia.com/v1",
         )
-        self.model = "nvidia/nv-embedqa-e5-v5"
+        self.model = "nvidia/llama-3.2-nv-embedqa-1b-v2"
 
     async def embed_query(self, text: str) -> list[float]:
         """
         Embed a user query / learning profile.
         Truncates at 512 chars to stay within model limits.
         """
-        truncated = text.strip()[:512]
+        truncated = text.strip()[:2000]  # Model supports 8192 tokens; 2000 chars is safe
         response = await self.client.embeddings.create(
             model=self.model,
             input=[truncated],
@@ -52,7 +63,7 @@ class NvidiaEmbedService:
             return []
 
         # Truncate each passage
-        truncated = [t.strip()[:512] for t in texts]
+        truncated = [t.strip()[:2000] for t in texts]  # 8192 token context
 
         # Batch in chunks of 50 (NIM limit)
         all_embeddings: list[list[float]] = []

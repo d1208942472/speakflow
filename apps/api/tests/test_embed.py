@@ -90,7 +90,7 @@ async def test_embed_query_calls_nvidia():
     from services.nvidia_embed import NvidiaEmbedService
     service = NvidiaEmbedService()
 
-    mock_embedding = [0.1] * 1024  # nv-embedqa-e5-v5 outputs 1024-dim
+    mock_embedding = [0.1] * 1024  # llama-3.2-nv-embedqa-1b-v2 default 1024-dim
     mock_response = MagicMock()
     mock_response.data = [MagicMock(embedding=mock_embedding)]
 
@@ -146,4 +146,4 @@ async def test_embed_truncates_long_text():
     with patch.object(service.client.embeddings, "create", new=mock_create):
         await service.embed_query(long_text)
 
-    assert len(captured["input"][0]) <= 512
+    assert len(captured["input"][0]) <= 2000  # Updated for 8192-token model
