@@ -17,7 +17,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://speakflow.app",
-        "https://speakflow-lake.vercel.app",   # current Vercel deployment
+        "https://speakflow-kkfjc8lrs-d1208942472s-projects.vercel.app",  # production
         "https://*.vercel.app",                 # preview deployments
     ],
     allow_credentials=True,

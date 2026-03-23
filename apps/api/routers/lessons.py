@@ -1,4 +1,5 @@
 """Lessons router — GET /lessons/, GET /lessons/{id}"""
+import time
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -6,6 +7,23 @@ from pydantic import BaseModel
 from dependencies import get_current_user, supabase
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
+
+# In-memory lesson cache — lessons are essentially static content
+# Cache TTL: 10 minutes (600s). Avoids repeated Supabase round-trips.
+_lesson_cache: dict = {}
+_cache_ttl = 600  # seconds
+
+
+def _get_cached_lessons() -> list | None:
+    """Return cached lesson list if still fresh, else None."""
+    entry = _lesson_cache.get("all")
+    if entry and (time.time() - entry["ts"]) < _cache_ttl:
+        return entry["data"]
+    return None
+
+
+def _set_cached_lessons(lessons: list) -> None:
+    _lesson_cache["all"] = {"data": lessons, "ts": time.time()}
 
 
 class LessonResponse(BaseModel):
@@ -53,7 +71,7 @@ async def list_lessons(
             detail=f"Invalid scenario. Must be one of: {valid_scenarios}",
         )
 
-    # Check user's pro status
+    # Check user's pro status (still requires a DB call per user)
     profile_resp = (
         supabase.table("profiles")
         .select("is_pro")
@@ -65,23 +83,28 @@ async def list_lessons(
     if profile_resp.data:
         is_pro = profile_resp.data[0].get("is_pro", False)
 
-    # Build query
-    query = supabase.table("lessons").select(
-        "id, scenario, level, title, description, target_phrases, "
-        "conversation_system_prompt, fp_reward, is_pro_only, sort_order"
-    )
+    # Use cache for the full lesson list — lessons are static content
+    all_lessons = _get_cached_lessons()
+    if all_lessons is None:
+        lessons_resp = (
+            supabase.table("lessons")
+            .select(
+                "id, scenario, level, title, description, target_phrases, "
+                "conversation_system_prompt, fp_reward, is_pro_only, sort_order"
+            )
+            .order("sort_order")
+            .order("level")
+            .execute()
+        )
+        all_lessons = lessons_resp.data or []
+        _set_cached_lessons(all_lessons)
 
+    # Filter in Python (no extra DB round-trip)
+    lessons_data = all_lessons
     if scenario:
-        query = query.eq("scenario", scenario)
-
-    # Non-pro users only get free lessons
+        lessons_data = [l for l in lessons_data if l.get("scenario") == scenario]
     if not is_pro:
-        query = query.eq("is_pro_only", False)
-
-    query = query.order("sort_order").order("level")
-    lessons_resp = query.execute()
-
-    lessons_data = lessons_resp.data or []
+        lessons_data = [l for l in lessons_data if not l.get("is_pro_only")]
 
     lessons = [
         LessonResponse(
