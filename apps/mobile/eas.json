@@ -26,7 +26,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://speakflow-api.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://speakflow-api.onrender.com"
       }
     },
     "production": {
@@ -39,7 +39,7 @@
         "distribution": "store"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://speakflow-api.railway.app"
+        "EXPO_PUBLIC_API_URL": "https://speakflow-api.onrender.com"
       }
     }
   },
