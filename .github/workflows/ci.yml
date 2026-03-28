@@ -63,7 +63,10 @@ jobs:
           STRIPE_SECRET_KEY: sk_test_placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
           STRIPE_ANNUAL_PRICE_ID: price_placeholder
-          NEXT_PUBLIC_SITE_URL: https://speakflow.ai
+          NEXT_PUBLIC_API_URL: https://api.speakmeteor.win
+          NEXT_PUBLIC_SITE_URL: https://speakmeteor.win
+          NEXT_PUBLIC_CANONICAL_SITE_URL: https://speakmeteor.win
+          NEXT_PUBLIC_WEB_CHECKOUT_ENABLED: "false"
 
       - name: Build
         run: npm run build
@@ -73,4 +76,7 @@ jobs:
           STRIPE_SECRET_KEY: sk_test_placeholder
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_placeholder
           STRIPE_ANNUAL_PRICE_ID: price_placeholder
-          NEXT_PUBLIC_SITE_URL: https://speakflow.ai
+          NEXT_PUBLIC_API_URL: https://api.speakmeteor.win
+          NEXT_PUBLIC_SITE_URL: https://speakmeteor.win
+          NEXT_PUBLIC_CANONICAL_SITE_URL: https://speakmeteor.win
+          NEXT_PUBLIC_WEB_CHECKOUT_ENABLED: "false"
