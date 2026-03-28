@@ -1,15 +1,23 @@
 """Sessions router — POST /sessions/complete (Riva + NIM + gamification pipeline)"""
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
 import asyncio
 from dependencies import get_current_user, supabase
+from services.access_control import (
+    describe_lesson_access,
+    ensure_profile,
+    get_daily_quota,
+    has_active_pro,
+)
 from services.nvidia_riva import riva_service
 from services.nvidia_nim import nim_service, ConversationTurn
 from services.gamification import GamificationService
 from services.nvidia_guardrails import guardrails_service
 from services.nvidia_reward import reward_service
+from services.recommendation_cache import get_or_create_profile_embedding
+from services.nvidia_embed import build_user_learning_profile
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -35,6 +43,7 @@ class SessionCompleteResponse(BaseModel):
 
 @router.post("/complete", response_model=SessionCompleteResponse)
 async def complete_session(
+    background_tasks: BackgroundTasks,
     lesson_id: str = Form(...),
     audio: UploadFile = File(...),
     target_phrase: str = Form(...),
@@ -75,20 +84,18 @@ async def complete_session(
         raise HTTPException(status_code=404, detail="Lesson not found")
 
     lesson = lesson_resp.data[0]
+    ensure_profile(supabase, current_user)
 
-    if lesson.get("is_pro_only"):
-        profile_resp = (
-            supabase.table("profiles")
-            .select("is_pro")
-            .eq("id", current_user.id)
-            .execute()
+    access = describe_lesson_access(lesson, has_active_pro(supabase, current_user.id))
+    if not access["can_access"]:
+        raise HTTPException(status_code=403, detail=access["lock_reason"])
+
+    quota = get_daily_quota(supabase, current_user.id)
+    if not quota["is_unlimited"] and quota["remaining_today"] == 0:
+        raise HTTPException(
+            status_code=403,
+            detail="You have used all 5 free practice sessions for today. Upgrade to Pro for unlimited sessions.",
         )
-        is_pro = profile_resp.data[0].get("is_pro", False) if profile_resp.data else False
-        if not is_pro:
-            raise HTTPException(
-                status_code=403,
-                detail="This lesson requires a Pro subscription",
-            )
 
     # Read audio
     audio_bytes = await audio.read()
@@ -189,6 +196,8 @@ async def complete_session(
                 "pronunciation_score": float(pronunciation_result.pronunciation_score),
                 "fluency_score": float(pronunciation_result.fluency_score),
                 "fp_earned": gamification_result.fp_earned,
+                "grammar_feedback": nim_feedback.grammar_feedback,
+                "vocabulary_suggestions": nim_feedback.vocabulary_suggestions,
                 "niva_feedback": (
                     f"{pronunciation_result.feedback_summary} | "
                     f"Grammar: {nim_feedback.grammar_feedback} | "
@@ -203,6 +212,48 @@ async def complete_session(
     session_id = ""
     if session_resp.data:
         session_id = session_resp.data[0].get("id", "")
+
+    async def _refresh_recommendation_profile() -> None:
+        try:
+            sessions_resp = (
+                supabase.table("session_results")
+                .select("pronunciation_score, grammar_feedback, vocabulary_suggestions, lesson_id")
+                .eq("user_id", current_user.id)
+                .order("completed_at", desc=True)
+                .limit(10)
+                .execute()
+            )
+            sessions = sessions_resp.data or []
+            recent_scores = [s["pronunciation_score"] for s in sessions if s.get("pronunciation_score")]
+            grammar_feedbacks = [s["grammar_feedback"] for s in sessions if s.get("grammar_feedback")]
+            vocab_feedbacks = [s["vocabulary_suggestions"] for s in sessions if s.get("vocabulary_suggestions")]
+            completed_lesson_ids = list({s["lesson_id"] for s in sessions if s.get("lesson_id")})
+            completed_scenarios: list[str] = []
+            if completed_lesson_ids:
+                completed_lessons_resp = (
+                    supabase.table("lessons")
+                    .select("scenario")
+                    .in_("id", completed_lesson_ids)
+                    .execute()
+                )
+                completed_scenarios = [l["scenario"] for l in (completed_lessons_resp.data or [])]
+
+            profile_text = build_user_learning_profile(
+                recent_scores=recent_scores,
+                grammar_feedback=grammar_feedbacks,
+                vocabulary_feedback=vocab_feedbacks,
+                completed_scenarios=completed_scenarios,
+            )
+            await get_or_create_profile_embedding(
+                supabase,
+                user_id=current_user.id,
+                profile_text=profile_text,
+            )
+        except Exception:
+            # Recommendation refresh is best-effort and must never fail the session flow.
+            return
+
+    background_tasks.add_task(_refresh_recommendation_profile)
 
     # Step 5: Return comprehensive result
     return SessionCompleteResponse(

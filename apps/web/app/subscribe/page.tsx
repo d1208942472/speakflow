@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { ManageBillingCard } from '../../components/ManageBillingCard'
+import { CONTACT_EMAIL, toMailto } from '../../lib/contact'
+import { getApiUrl } from '../../lib/api'
 
 const proFeatures = [
   { text: 'All 25+ business English scenarios', icon: '📚' },
@@ -18,20 +21,35 @@ const proFeatures = [
 export default function SubscribePage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [email, setEmail] = useState('')
+  const webCheckoutEnabled =
+    process.env.NEXT_PUBLIC_WEB_CHECKOUT_ENABLED === 'true'
 
   async function handleCheckout() {
+    if (!webCheckoutEnabled) {
+      setError('Web checkout is activating. Use the App Store plan for now or email us for founding-member access.')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
     try {
-      const response = await fetch('/api/create-checkout', {
+      if (!email.trim()) {
+        throw new Error('Enter your email to start checkout')
+      }
+
+      const response = await fetch(getApiUrl('/billing/checkout-session'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
       })
 
       if (!response.ok) {
         const data = await response.json()
-        throw new Error(data.error || 'Failed to create checkout session')
+        throw new Error(
+          data.detail || data.error || 'Failed to create checkout session'
+        )
       }
 
       const { url } = await response.json()
@@ -185,7 +203,7 @@ export default function SubscribePage() {
           </div>
 
           {/* Right: Checkout */}
-          <div className="lg:sticky lg:top-8">
+          <div className="lg:sticky lg:top-8 space-y-4">
             <div className="bg-card border border-border rounded-3xl p-8 space-y-6 shadow-card">
               <div className="space-y-1">
                 <h2 className="text-xl font-bold text-white">
@@ -193,6 +211,27 @@ export default function SubscribePage() {
                 </h2>
                 <p className="text-slate-400 text-sm">
                   No charge for 7 days. Cancel before then and you owe nothing.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <label
+                  htmlFor="checkout-email"
+                  className="text-slate-300 text-sm font-medium"
+                >
+                  Work email
+                </label>
+                <input
+                  id="checkout-email"
+                  type="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  placeholder="you@company.com"
+                  className="w-full rounded-2xl border border-border bg-background/50 px-4 py-3 text-white outline-none transition focus:border-primary"
+                  autoComplete="email"
+                />
+                <p className="text-slate-500 text-xs">
+                  Use the same email in the app so we can attach your subscription correctly.
                 </p>
               </div>
 
@@ -227,13 +266,21 @@ export default function SubscribePage() {
               {error && (
                 <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3">
                   <p className="text-red-400 text-sm">{error}</p>
+                  {!webCheckoutEnabled && (
+                    <a
+                      href={toMailto(CONTACT_EMAIL, 'Founding member access')}
+                      className="mt-2 inline-flex text-sm font-medium text-red-300 underline underline-offset-4"
+                    >
+                      Email {CONTACT_EMAIL}
+                    </a>
+                  )}
                 </div>
               )}
 
               {/* Checkout button */}
               <button
                 onClick={handleCheckout}
-                disabled={loading}
+                disabled={loading || !webCheckoutEnabled}
                 className="w-full py-4 px-6 rounded-2xl bg-primary hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-base transition-all duration-200 hover:scale-[1.02] disabled:hover:scale-100 shadow-glow-purple flex items-center justify-center gap-2"
               >
                 {loading ? (
@@ -274,10 +321,19 @@ export default function SubscribePage() {
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                       />
                     </svg>
-                    Checkout with Stripe — Free for 7 days
+                    {webCheckoutEnabled
+                      ? 'Checkout with Stripe — Free for 7 days'
+                      : 'Web checkout activating soon'}
                   </>
                 )}
               </button>
+
+              {!webCheckoutEnabled && (
+                <p className="text-center text-xs text-slate-500">
+                  Web annual billing will switch on after payment account approval.
+                  Mobile subscriptions remain available through the App Store.
+                </p>
+              )}
 
               {/* Trust badges */}
               <div className="space-y-2">
@@ -313,6 +369,7 @@ export default function SubscribePage() {
                 </span>
               </div>
             </div>
+            <ManageBillingCard defaultEmail={email} />
           </div>
         </div>
       </div>

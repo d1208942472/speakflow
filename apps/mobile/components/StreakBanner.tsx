@@ -7,6 +7,7 @@ const LEAGUE_LABELS: Record<LeagueTier, string> = {
   bronze: 'Bronze',
   silver: 'Silver',
   gold: 'Gold',
+  platinum: 'Platinum',
   diamond: 'Diamond',
 };
 

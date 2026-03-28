@@ -6,7 +6,6 @@ import {
   StyleSheet,
 } from 'react-native';
 import { Colors } from '../constants/Colors';
-import { useUserStore } from '../store/userStore';
 
 export interface Lesson {
   id: string;
@@ -15,6 +14,7 @@ export interface Lesson {
   level: number;
   fpReward: number;
   isProOnly: boolean;
+  canAccess?: boolean;
 }
 
 export interface LessonCardProps {
@@ -72,8 +72,7 @@ export function LessonCard({
   isCompleted = false,
   onPress,
 }: LessonCardProps): React.JSX.Element {
-  const isPro = useUserStore((s) => s.isPro);
-  const isLocked = lesson.isProOnly && !isPro;
+  const isLocked = lesson.canAccess === false;
   const emoji = SCENARIO_EMOJIS[lesson.scenario] ?? '📝';
 
   return (

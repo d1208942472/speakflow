@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { SUPPORT_EMAIL, toMailto } from '../lib/contact'
 
 const faqs = [
   {
@@ -21,7 +22,7 @@ const faqs = [
   {
     question: "Can I cancel anytime?",
     answer:
-      "Yes, absolutely. The annual web plan ($79.99/yr) can be cancelled anytime from your account settings or by emailing support@speakflow.ai. You keep access until the end of your paid period. Monthly App Store subscriptions can be cancelled directly from your iOS/Android subscription settings. We don't believe in dark patterns — cancellation takes 30 seconds.",
+      `Yes, absolutely. The annual web plan ($79.99/yr) can be cancelled anytime from your account settings or by emailing ${SUPPORT_EMAIL}. You keep access until the end of your paid period. Monthly App Store subscriptions can be cancelled directly from your iOS/Android subscription settings. We don't believe in dark patterns — cancellation takes 30 seconds.`,
   },
   {
     question: "Is SpeakFlow good for job interviews specifically?",
@@ -113,7 +114,7 @@ export function FAQSection() {
           <p className="text-slate-400">
             Can&apos;t find your answer?{' '}
             <a
-              href="mailto:support@speakflow.ai"
+              href={toMailto(SUPPORT_EMAIL)}
               className="text-primary hover:text-primary-light transition-colors"
             >
               Email us

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL, toMailto } from '../../lib/contact'
 
 export const metadata: Metadata = {
   title: 'Cookie Policy — SpeakFlow',
@@ -91,8 +92,8 @@ export default function CookiesPage() {
             <h2 className="text-xl font-bold text-white mb-3">Contact</h2>
             <p>
               Questions about our cookie policy? Email us at{' '}
-              <a href="mailto:hello@speakflow.ai" className="text-primary hover:text-primary-light">
-                hello@speakflow.ai
+              <a href={toMailto(CONTACT_EMAIL)} className="text-primary hover:text-primary-light">
+                {CONTACT_EMAIL}
               </a>
               {' '}or see our full{' '}
               <Link href="/privacy" className="text-primary hover:text-primary-light">

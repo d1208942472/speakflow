@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
 
 from dependencies import get_current_user, supabase
+from services.access_control import ensure_profile, has_active_pro
 from services.nvidia_nim import ConversationTurn
 from services.nvidia_voicechat import voicechat_service
 from services.nvidia_guardrails import guardrails_service
@@ -46,14 +47,8 @@ async def voice_chat_turn(
     Requires Pro subscription.
     """
     # Check pro access
-    profile_resp = (
-        supabase.table("profiles")
-        .select("is_pro")
-        .eq("id", current_user.id)
-        .execute()
-    )
-    is_pro = profile_resp.data[0].get("is_pro", False) if profile_resp.data else False
-    if not is_pro:
+    ensure_profile(supabase, current_user)
+    if not has_active_pro(supabase, current_user.id):
         raise HTTPException(
             status_code=403,
             detail="Voice Chat mode requires a Pro subscription",

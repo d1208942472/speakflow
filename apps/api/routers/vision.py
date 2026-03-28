@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
 from pydantic import BaseModel
 
 from dependencies import get_current_user, supabase
+from services.access_control import ensure_profile, has_active_pro
 from services.nvidia_vision import vision_service
 
 router = APIRouter(prefix="/vision", tags=["vision"])
@@ -37,14 +38,7 @@ class DocumentAnalysisResponse(BaseModel):
 
 def _check_pro_access(user_id: str) -> None:
     """Raise 403 if user doesn't have Pro access."""
-    profile_resp = (
-        supabase.table("profiles")
-        .select("is_pro")
-        .eq("id", user_id)
-        .execute()
-    )
-    is_pro = profile_resp.data[0].get("is_pro", False) if profile_resp.data else False
-    if not is_pro:
+    if not has_active_pro(supabase, user_id):
         raise HTTPException(
             status_code=403,
             detail="Slide and document analysis requires a Pro subscription",
@@ -76,6 +70,7 @@ async def analyze_slide(
 
     coaching_focus: "presentation" | "email" | "document" | "general"
     """
+    ensure_profile(supabase, current_user)
     _check_pro_access(current_user.id)
     _validate_image(image)
 
@@ -109,6 +104,7 @@ async def analyze_document(
     - Suggested improvements
     - Rewritten version of key sections
     """
+    ensure_profile(supabase, current_user)
     _check_pro_access(current_user.id)
     _validate_image(image)
 

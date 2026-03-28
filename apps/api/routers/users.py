@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from dependencies import get_current_user, supabase
+from services.access_control import ensure_profile, get_daily_quota, list_entitlements
 
 router = APIRouter(prefix="/users", tags=["users"])
 
@@ -17,6 +18,8 @@ class ProfileResponse(BaseModel):
     weekly_fp: int
     league: str
     is_pro: bool
+    billing_provider: Optional[str] = None
+    quota_remaining: Optional[int] = None
     last_activity_date: Optional[str]
     created_at: str
 
@@ -35,46 +38,14 @@ async def get_current_user_profile(
     current_user=Depends(get_current_user),
 ):
     """Get the current authenticated user's profile."""
-    profile_resp = (
-        supabase.table("profiles")
-        .select(
-            "id, username, streak, streak_shields, total_fp, weekly_fp, "
-            "league, is_pro, last_activity_date, created_at"
-        )
-        .eq("id", current_user.id)
-        .execute()
-    )
-
-    if not profile_resp.data:
-        # Auto-create profile if it doesn't exist (race condition safety)
-        email = getattr(current_user, "email", "") or ""
-        username = email.split("@")[0] if email else "user"
-
-        insert_resp = (
-            supabase.table("profiles")
-            .insert(
-                {
-                    "id": current_user.id,
-                    "username": username,
-                    "streak": 0,
-                    "streak_shields": 0,
-                    "total_fp": 0,
-                    "weekly_fp": 0,
-                    "league": "bronze",
-                    "is_pro": False,
-                }
-            )
-            .execute()
-        )
-
-        if not insert_resp.data:
-            raise HTTPException(
-                status_code=500, detail="Failed to create user profile"
-            )
-
-        profile = insert_resp.data[0]
-    else:
-        profile = profile_resp.data[0]
+    profile = ensure_profile(supabase, current_user)
+    entitlements = list_entitlements(supabase, current_user.id)
+    quota = get_daily_quota(supabase, current_user.id)
+    active_providers = [
+        item["source_provider"]
+        for item in entitlements
+        if item.get("entitlement_key") == "pro" and item.get("status") == "active"
+    ]
 
     return ProfileResponse(
         id=profile["id"],
@@ -84,7 +55,9 @@ async def get_current_user_profile(
         total_fp=profile.get("total_fp", 0),
         weekly_fp=profile.get("weekly_fp", 0),
         league=profile.get("league", "bronze"),
-        is_pro=profile.get("is_pro", False),
+        is_pro=quota["has_pro"],
+        billing_provider=active_providers[0] if active_providers else None,
+        quota_remaining=quota["remaining_today"],
         last_activity_date=profile.get("last_activity_date"),
         created_at=profile.get("created_at", ""),
     )

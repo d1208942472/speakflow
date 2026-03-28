@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { CONTACT_EMAIL, toMailto } from '../../lib/contact'
 
 export const metadata: Metadata = {
   title: 'Careers — SpeakFlow | Join Our AI-Powered English Coaching Team',
@@ -118,7 +119,7 @@ export default function CareersPage() {
                   </div>
                 </div>
                 <a
-                  href={`mailto:hello@speakflow.ai?subject=Application: ${encodeURIComponent(role.title)}`}
+                  href={toMailto(CONTACT_EMAIL, `Application: ${role.title}`)}
                   className="flex-shrink-0 bg-primary hover:bg-primary-dark text-white font-bold px-5 py-2 rounded-xl text-sm transition-colors"
                 >
                   Apply →
@@ -137,7 +138,7 @@ export default function CareersPage() {
             We&rsquo;re always looking for exceptional people. Send us a note about what you do and what excites you about SpeakFlow.
           </p>
           <a
-            href="mailto:hello@speakflow.ai?subject=Spontaneous Application"
+            href={toMailto(CONTACT_EMAIL, 'Spontaneous Application')}
             className="inline-flex items-center gap-2 bg-primary hover:bg-primary-dark text-white font-bold px-6 py-3 rounded-2xl transition-all duration-200 hover:scale-105"
           >
             Send a note

@@ -254,7 +254,7 @@ const dotStyles = StyleSheet.create({
 const STEPS = [
   {
     title: "What's your English level?",
-    subtitle: 'We'll personalize your learning path',
+    subtitle: "We'll personalize your learning path",
   },
   {
     title: "What's your main goal?",

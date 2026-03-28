@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 const freeFeatures = [
   '3 free lesson scenarios',
-  'Basic business scenarios',
+  'Job interviews, presentations, and small talk',
   '5 sessions per day',
   'Standard pronunciation feedback',
   'Community leaderboard access',

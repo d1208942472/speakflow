@@ -155,7 +155,7 @@ export default function LeaguesTab(): React.JSX.Element {
                 )}
                 <LeagueRow
                   rank={standing.rank}
-                  username={standing.username}
+                  username={standing.username ?? 'Anonymous'}
                   weeklyFP={standing.weeklyFP}
                   league={standing.league}
                   isCurrentUser={standing.userId === userId}

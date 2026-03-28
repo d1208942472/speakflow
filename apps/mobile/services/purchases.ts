@@ -7,16 +7,24 @@ import Purchases, {
 // Re-export type alias for consumers
 export type { PurchasesPackage };
 
-const RC_KEY_IOS = process.env.EXPO_PUBLIC_RC_KEY_IOS ?? '';
+const RC_KEY_IOS = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY_IOS ?? '';
 
 let _initialized = false;
+
+function isUserCancelledError(error: unknown): error is Error & { userCancelled: boolean } {
+  return (
+    error instanceof Error &&
+    'userCancelled' in error &&
+    (error as Error & { userCancelled?: boolean }).userCancelled === true
+  );
+}
 
 /**
  * Configure RevenueCat SDK. Call once at app startup with the authenticated user ID.
  */
 export async function initPurchases(userId: string): Promise<void> {
   if (!RC_KEY_IOS) {
-    console.warn('[Purchases] EXPO_PUBLIC_RC_KEY_IOS is not set — purchases will not work.');
+    console.warn('[Purchases] EXPO_PUBLIC_REVENUECAT_API_KEY_IOS is not set — purchases will not work.');
     return;
   }
 
@@ -62,11 +70,7 @@ export async function purchasePackage(pkg: PurchasesPackage): Promise<boolean> {
     return isPro(customerInfo);
   } catch (e: unknown) {
     // User cancelled is not a real error
-    if (
-      e instanceof Error &&
-      'userCancelled' in (e as Record<string, unknown>) &&
-      (e as Record<string, unknown>).userCancelled === true
-    ) {
+    if (isUserCancelledError(e)) {
       return false;
     }
     console.error('[Purchases] purchasePackage error:', e);

@@ -1,0 +1,21 @@
+name = "speakmeteor-edge"
+main = "workers/speakmeteor-edge/src/index.js"
+compatibility_date = "2026-03-28"
+account_id = "ef28b8d2fe55b5eaa14d01ab775e6b70"
+workers_dev = false
+
+[assets]
+directory = "./apps/web/out"
+binding = "ASSETS"
+
+[[routes]]
+pattern = "speakmeteor.win/*"
+zone_name = "speakmeteor.win"
+
+[[routes]]
+pattern = "www.speakmeteor.win/*"
+zone_name = "speakmeteor.win"
+
+[[routes]]
+pattern = "api.speakmeteor.win/*"
+zone_name = "speakmeteor.win"

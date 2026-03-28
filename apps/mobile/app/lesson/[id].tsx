@@ -25,11 +25,14 @@ interface LessonData {
   id: string;
   title: string;
   scenario: string;
+  scenarioKey: string;
   targetPhrase: string;
   systemPrompt: string;
   level: number;
   fpReward: number;
   isProOnly: boolean;
+  canAccess: boolean;
+  lockReason: string | null;
   instructions: string;
 }
 
@@ -51,18 +54,23 @@ interface ApiLessonResponse {
   conversation_system_prompt: string;
   fp_reward: number;
   is_pro_only: boolean;
+  can_access: boolean;
+  lock_reason: string | null;
 }
 
 function mapApiLesson(data: ApiLessonResponse): LessonData {
   return {
     id: data.id,
     title: data.title,
+    scenarioKey: data.scenario,
     scenario: SCENARIO_DISPLAY[data.scenario] ?? data.scenario,
     targetPhrase: data.target_phrases?.[0] ?? 'Speak naturally and clearly.',
     systemPrompt: data.conversation_system_prompt,
     level: data.level,
     fpReward: data.fp_reward,
     isProOnly: data.is_pro_only,
+    canAccess: data.can_access,
+    lockReason: data.lock_reason,
     instructions: data.description,
   };
 }
@@ -210,6 +218,7 @@ export default function LessonScreen(): React.JSX.Element {
   const router = useRouter();
   const navigation = useNavigation();
   const isPro = useUserStore((s) => s.isPro);
+  const quotaRemaining = useUserStore((s) => s.quotaRemaining);
   const token = useUserStore((s) => s.token);
 
   const [lesson, setLesson] = useState<LessonData | null>(null);
@@ -265,7 +274,7 @@ export default function LessonScreen(): React.JSX.Element {
   }
 
   // Paywall check
-  const isLocked = lesson.isProOnly && !isPro;
+  const isLocked = !lesson.canAccess;
 
   // Voice Chat mode (Pro only — speech-to-speech with Max)
   const [voiceChatMode, setVoiceChatMode] = useState(false);
@@ -322,6 +331,10 @@ export default function LessonScreen(): React.JSX.Element {
       router.push('/paywall');
       return;
     }
+    if (!isPro && quotaRemaining === 0) {
+      router.push('/paywall');
+      return;
+    }
     startSession();
   };
 
@@ -373,6 +386,13 @@ export default function LessonScreen(): React.JSX.Element {
             <Text style={styles.instructionsLabel}>Your Goal</Text>
             <Text style={styles.instructionsText}>{lesson.instructions}</Text>
           </View>
+
+          {lesson.lockReason && (
+            <View style={styles.instructionsCard}>
+              <Text style={styles.instructionsLabel}>Access</Text>
+              <Text style={styles.instructionsText}>{lesson.lockReason}</Text>
+            </View>
+          )}
 
           <View style={styles.fpBadgeRow}>
             <Text style={styles.fpBadgeText}>⚡ Earn up to {lesson.fpReward} FP</Text>

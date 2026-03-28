@@ -1,0 +1,3 @@
+commit	primary_metric	secondary_metric	status	description
+8d751f1	36.57	87.00	keep	2026-03-28 baseline run
+8d751f1	28.41	87.00	keep	baseline	web build baseline (build_time_s=28.41, first_load_shared_kb=87.00)

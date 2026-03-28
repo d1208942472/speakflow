@@ -1,8 +1,26 @@
 """SpeakFlow API — NVIDIA-powered business English speaking coach"""
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import speech, conversation, lessons, users, sessions, webhooks, leagues, notifications, translate, voicechat, recommend, vision
+from routers import (
+    analysis,
+    billing,
+    speech,
+    conversation,
+    lessons,
+    users,
+    sessions,
+    webhooks,
+    leagues,
+    notifications,
+    translate,
+    voicechat,
+    recommend,
+    vision,
+    me,
+)
 
 app = FastAPI(
     title="SpeakFlow API",
@@ -12,14 +30,19 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+allowed_origins = [
+    "http://localhost:3000",
+    os.environ.get("PUBLIC_SITE_URL", "https://speakmeteor.win"),
+    "https://www.speakmeteor.win",
+    "https://speakflow-kkfjc8lrs-d1208942472s-projects.vercel.app",
+]
+extra_origins = [origin.strip() for origin in os.environ.get("PUBLIC_SITE_URLS", "").split(",") if origin.strip()]
+allowed_origins.extend(extra_origins)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://speakflow.app",
-        "https://speakflow-kkfjc8lrs-d1208942472s-projects.vercel.app",  # production
-        "https://*.vercel.app",                 # preview deployments
-    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,6 +61,9 @@ for router in [
     voicechat.router,
     recommend.router,
     vision.router,
+    me.router,
+    billing.router,
+    analysis.router,
 ]:
     app.include_router(router)
 

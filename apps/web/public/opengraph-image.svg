@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="1080" y2="550" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#020617" />
+      <stop offset="0.55" stop-color="#0F172A" />
+      <stop offset="1" stop-color="#082F49" />
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(865 180) rotate(128.659) scale(388.117 364.933)">
+      <stop stop-color="#38BDF8" stop-opacity="0.34" />
+      <stop offset="1" stop-color="#38BDF8" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <circle cx="865" cy="180" r="300" fill="url(#glow)" />
+  <circle cx="256" cy="516" r="220" fill="#1D4ED8" fill-opacity="0.16" />
+  <rect x="88" y="88" width="154" height="154" rx="38" fill="#0EA5E9" fill-opacity="0.22" stroke="#38BDF8" stroke-opacity="0.42" stroke-width="2"/>
+  <path d="M136 132a31 31 0 1 1 62 0v46a31 31 0 1 1-62 0v-46Z" fill="#F8FAFC"/>
+  <path d="M118 175a5 5 0 0 1 10 0c0 20.99 17.01 38 38 38s38-17.01 38-38a5 5 0 1 1 10 0c0 25.15-18.06 46.08-42 50.72V246h18a5 5 0 1 1 0 10h-48a5 5 0 0 1 0-10h20v-20.28c-23.94-4.64-42-25.57-42-50.72Z" fill="#E2E8F0"/>
+  <text x="290" y="170" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="700">SpeakFlow</text>
+  <text x="292" y="238" fill="#BAE6FD" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">AI business English coach for real speaking practice</text>
+  <text x="292" y="304" fill="#CBD5E1" font-family="Arial, Helvetica, sans-serif" font-size="30">NVIDIA pronunciation scoring. Scenario drills. Subscription-ready growth stack.</text>
+  <rect x="292" y="370" width="258" height="62" rx="31" fill="#1D4ED8"/>
+  <text x="332" y="410" fill="#F8FAFC" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">3 free scenarios</text>
+  <rect x="572" y="370" width="252" height="62" rx="31" fill="#082F49" stroke="#38BDF8" stroke-opacity="0.45"/>
+  <text x="614" y="410" fill="#E0F2FE" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">5 sessions / day</text>
+  <text x="292" y="500" fill="#7DD3FC" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">speakmeteor.win</text>
+</svg>

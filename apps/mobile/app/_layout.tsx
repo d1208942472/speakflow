@@ -7,7 +7,7 @@ import { initPurchases } from '../services/purchases';
 import { useUserStore } from '../store/userStore';
 import { Colors } from '../constants/Colors';
 import type { Session } from '@supabase/supabase-js';
-import type { LeagueTier } from '../store/userStore';
+import type { LeagueTier, UserState } from '../store/userStore';
 
 interface ApiProfile {
   id: string;
@@ -18,13 +18,38 @@ interface ApiProfile {
   weekly_fp: number;
   league: LeagueTier;
   is_pro: boolean;
+  billing_provider: string | null;
+  quota_remaining: number | null;
   last_activity_date: string | null;
   created_at: string;
 }
 
-async function syncProfileFromApi(token: string, setUser: (u: Partial<ReturnType<typeof useUserStore.getState>>) => void): Promise<void> {
+interface ApiEntitlementsResponse {
+  entitlements: Array<{
+    entitlement_key: string;
+    status: string;
+    source_provider: string;
+  }>;
+  has_pro: boolean;
+  billing_provider: string | null;
+}
+
+interface ApiQuotaResponse {
+  has_pro: boolean;
+  is_unlimited: boolean;
+  daily_session_limit: number | null;
+  used_today: number;
+  remaining_today: number | null;
+  resets_at: string;
+}
+
+async function syncProfileFromApi(token: string, setUser: (u: Partial<UserState>) => void): Promise<void> {
   try {
-    const profile = await apiGet<ApiProfile>('/users/me', token);
+    const [profile, entitlements, quota] = await Promise.all([
+      apiGet<ApiProfile>('/users/me', token),
+      apiGet<ApiEntitlementsResponse>('/me/entitlements', token),
+      apiGet<ApiQuotaResponse>('/me/quota', token),
+    ]);
     setUser({
       username: profile.username ?? undefined,
       streak: profile.streak,
@@ -32,7 +57,14 @@ async function syncProfileFromApi(token: string, setUser: (u: Partial<ReturnType
       totalFP: profile.total_fp,
       weeklyFP: profile.weekly_fp,
       league: profile.league,
-      isPro: profile.is_pro,
+      isPro: entitlements.has_pro || profile.is_pro,
+      entitlements: entitlements.entitlements
+        .filter((item) => item.status === 'active')
+        .map((item) => item.entitlement_key),
+      billingProvider: entitlements.billing_provider ?? profile.billing_provider,
+      quotaRemaining: quota.remaining_today,
+      quotaLimit: quota.daily_session_limit,
+      quotaUsedToday: quota.used_today,
       lastActivityDate: profile.last_activity_date,
     });
   } catch (e) {
@@ -53,11 +85,11 @@ export default function RootLayout(): React.JSX.Element {
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       if (s) {
-        setUser({
-          userId: s.user.id,
-          token: s.access_token,
-          username: s.user.user_metadata?.username ?? s.user.email?.split('@')[0] ?? 'User',
-        });
+          setUser({
+            userId: s.user.id,
+            token: s.access_token,
+            username: s.user.user_metadata?.username ?? s.user.email?.split('@')[0] ?? 'User',
+          });
         // Sync authoritative profile data (streak, FP, league, isPro) from API
         await syncProfileFromApi(s.access_token, setUser);
         // Initialize RevenueCat with authenticated user ID

@@ -1,5 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import { PRIVACY_EMAIL, toMailto } from '../../lib/contact'
+import { getSiteUrl } from '../../lib/site'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
@@ -7,6 +9,7 @@ export const metadata: Metadata = {
 }
 
 const LAST_UPDATED = 'March 22, 2026'
+const SITE_HOST = new URL(getSiteUrl()).host
 
 export default function PrivacyPage() {
   return (
@@ -131,7 +134,7 @@ export default function PrivacyPage() {
               <li>
                 <strong className="text-white">Service Providers:</strong> We share data with trusted
                 third-party vendors who help operate our Service (Supabase for database/auth, NVIDIA for
-                AI processing, Stripe/RevenueCat for payments, Vercel/Railway for hosting).
+                AI processing, Stripe/RevenueCat for payments, Vercel/Render for hosting).
               </li>
               <li>
                 <strong className="text-white">Legal Requirements:</strong> We may disclose your
@@ -156,7 +159,7 @@ export default function PrivacyPage() {
             </p>
             <p>
               You may request deletion of your account and associated data at any time by contacting us
-              at <a href="mailto:privacy@speakflow.ai" className="text-primary hover:underline">privacy@speakflow.ai</a>.
+              at <a href={toMailto(PRIVACY_EMAIL)} className="text-primary hover:underline">{PRIVACY_EMAIL}</a>.
               We will process deletion requests within 30 days.
             </p>
           </Section>
@@ -197,7 +200,7 @@ export default function PrivacyPage() {
             </ul>
             <p>
               To exercise these rights, contact us at{' '}
-              <a href="mailto:privacy@speakflow.ai" className="text-primary hover:underline">privacy@speakflow.ai</a>.
+              <a href={toMailto(PRIVACY_EMAIL)} className="text-primary hover:underline">{PRIVACY_EMAIL}</a>.
             </p>
           </Section>
 
@@ -223,8 +226,8 @@ export default function PrivacyPage() {
               If you have any questions about this Privacy Policy or our data practices, please contact us:
             </p>
             <ul>
-              <li>Email: <a href="mailto:privacy@speakflow.ai" className="text-primary hover:underline">privacy@speakflow.ai</a></li>
-              <li>Website: <Link href="/" className="text-primary hover:underline">speakflow.ai</Link></li>
+              <li>Email: <a href={toMailto(PRIVACY_EMAIL)} className="text-primary hover:underline">{PRIVACY_EMAIL}</a></li>
+              <li>Website: <Link href="/" className="text-primary hover:underline">{SITE_HOST}</Link></li>
             </ul>
           </Section>
 

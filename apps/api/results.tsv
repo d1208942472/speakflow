@@ -1,0 +1,3 @@
+commit	primary_metric	secondary_metric	status	description
+8d751f1	2.54	voicechat=1.88;session=2.54;vision=2.03;lessons=1.45;pytest=71/0	keep	2026-03-28 baseline run
+8d751f1	14.98	71	keep	api synthetic critical-path baseline on mocked services (lessons=14.98ms worst-path, pytest=71 passed)

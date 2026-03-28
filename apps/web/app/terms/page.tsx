@@ -1,5 +1,7 @@
 import { Metadata } from 'next'
 import Link from 'next/link'
+import { LEGAL_EMAIL, SUPPORT_EMAIL, toMailto } from '../../lib/contact'
+import { getSiteUrl } from '../../lib/site'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -7,6 +9,7 @@ export const metadata: Metadata = {
 }
 
 const LAST_UPDATED = 'March 22, 2026'
+const SITE_HOST = new URL(getSiteUrl()).host
 
 export default function TermsPage() {
   return (
@@ -25,7 +28,7 @@ export default function TermsPage() {
 
           <Section title="1. Acceptance of Terms">
             <p>
-              By downloading, installing, or using SpeakFlow (&quot;the App&quot;) or visiting speakflow.ai
+              By downloading, installing, or using SpeakFlow (&quot;the App&quot;) or visiting {SITE_HOST}
               (&quot;the Website&quot;), you agree to be bound by these Terms of Service (&quot;Terms&quot;). If you do
               not agree to these Terms, do not use our Service.
             </p>
@@ -91,7 +94,7 @@ export default function TermsPage() {
                 the current billing period. You can manage and cancel your subscription:
               </p>
               <ul>
-                <li>Web: through your account settings at speakflow.ai</li>
+                <li>Web: through your account settings at {SITE_HOST}</li>
                 <li>iOS: through Apple ID → Subscriptions in Settings</li>
                 <li>Android: through Google Play → Subscriptions</li>
               </ul>
@@ -99,7 +102,7 @@ export default function TermsPage() {
             <Subsection title="4.5 Refund Policy">
               <p>
                 Web annual subscriptions: You may request a full refund within 14 days of your first
-                payment by contacting <a href="mailto:support@speakflow.ai" className="text-primary hover:underline">support@speakflow.ai</a>.
+                payment by contacting <a href={toMailto(SUPPORT_EMAIL)} className="text-primary hover:underline">{SUPPORT_EMAIL}</a>.
                 After 14 days, refunds are provided at our discretion.
               </p>
               <p>
@@ -218,7 +221,7 @@ export default function TermsPage() {
               For questions about these Terms, contact us at:
             </p>
             <ul>
-              <li>Email: <a href="mailto:legal@speakflow.ai" className="text-primary hover:underline">legal@speakflow.ai</a></li>
+              <li>Email: <a href={toMailto(LEGAL_EMAIL)} className="text-primary hover:underline">{LEGAL_EMAIL}</a></li>
               <li>
                 Privacy inquiries:{' '}
                 <Link href="/privacy" className="text-primary hover:underline">Privacy Policy</Link>

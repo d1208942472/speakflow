@@ -1,11 +1,17 @@
 node_modules
 .env
+.env.local
+.env.*.local
 *.pyc
 __pycache__
 dist
 .expo
 .next
+.vercel
 venv
 .venv
 *.egg-info
 .DS_Store
+.autoresearch
+apps/web/out
+supabase/.temp

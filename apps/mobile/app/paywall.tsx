@@ -18,13 +18,14 @@ import type { PurchasesPackage } from '../services/purchases';
 const FEATURES = [
   { emoji: '🎙️', text: 'Unlimited speaking sessions with NVIDIA AI' },
   { emoji: '📊', text: 'Advanced pronunciation analytics' },
-  { emoji: '💼', text: 'All 50+ professional scenarios' },
+  { emoji: '💼', text: 'All 25 professional scenarios' },
   { emoji: '🏆', text: 'Priority league placement' },
   { emoji: '🛡️', text: '3 streak shields per month' },
   { emoji: '🤖', text: 'Personalized AI coaching from Max' },
 ];
 
-const ANNUAL_URL = 'https://speakflow.app/subscribe/annual';
+const SITE_URL = process.env.EXPO_PUBLIC_SITE_URL || 'https://speakmeteor.win';
+const ANNUAL_URL = `${SITE_URL}/subscribe`;
 
 export default function PaywallScreen(): React.JSX.Element {
   const router = useRouter();
@@ -98,7 +99,7 @@ export default function PaywallScreen(): React.JSX.Element {
           </View>
           <Text style={styles.headline}>Speak Business English{'\n'}Like a Native</Text>
           <Text style={styles.subheadline}>
-            Join 10,000+ professionals who landed their dream jobs with SpeakFlow
+            Master business English with NVIDIA AI coaching — impress any hiring manager
           </Text>
         </View>
 
@@ -187,7 +188,7 @@ export default function PaywallScreen(): React.JSX.Element {
               await handlePurchase(monthlyPackage);
             } else {
               // No packages loaded — open web
-              await Linking.openURL('https://speakflow.app/subscribe');
+              await Linking.openURL(ANNUAL_URL);
             }
           }}
           disabled={isPurchasing}
@@ -231,14 +232,14 @@ export default function PaywallScreen(): React.JSX.Element {
           {'\n\n'}
           <Text
             style={styles.legalLink}
-            onPress={() => Linking.openURL('https://speakflow.app/terms')}
+            onPress={() => Linking.openURL(`${SITE_URL}/terms`)}
           >
             Terms of Service
           </Text>
           {'  '}
           <Text
             style={styles.legalLink}
-            onPress={() => Linking.openURL('https://speakflow.app/privacy')}
+            onPress={() => Linking.openURL(`${SITE_URL}/privacy`)}
           >
             Privacy Policy
           </Text>

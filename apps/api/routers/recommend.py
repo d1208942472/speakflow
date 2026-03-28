@@ -18,10 +18,14 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from dependencies import get_current_user, supabase
+from services.access_control import describe_lesson_access, ensure_profile, has_active_pro
 from services.nvidia_embed import (
-    embed_service,
     cosine_similarity,
     build_user_learning_profile,
+)
+from services.recommendation_cache import (
+    get_or_create_lesson_embeddings,
+    get_or_create_profile_embedding,
 )
 
 router = APIRouter(prefix="/recommend", tags=["recommend"])
@@ -56,13 +60,15 @@ async def get_next_lesson_recommendation(
     relevant lessons for their current skill level and weak areas.
     """
     user_id = current_user.id
+    ensure_profile(supabase, current_user)
+    is_pro = has_active_pro(supabase, user_id)
 
     # ── 1. Fetch user's recent sessions ────────────────────────────────────
     sessions_resp = (
         supabase.table("session_results")
         .select("pronunciation_score, grammar_feedback, vocabulary_suggestions, lesson_id")
         .eq("user_id", user_id)
-        .order("created_at", desc=True)
+        .order("completed_at", desc=True)
         .limit(10)
         .execute()
     )
@@ -121,6 +127,12 @@ async def get_next_lesson_recommendation(
     if not candidate_lessons:
         return RecommendationResponse(recommendations=[], profile_summary=profile_text)
 
+    for lesson in candidate_lessons:
+        access = describe_lesson_access(lesson, is_pro)
+        lesson["__can_access"] = access["can_access"]
+        lesson["__requires_pro"] = access["requires_pro"]
+        lesson["__lock_reason"] = access["lock_reason"]
+
     # ── 5. Build lesson passage texts for embedding ────────────────────────
     def lesson_to_passage(lesson: dict) -> str:
         target_phrases = lesson.get("target_phrases") or []
@@ -140,8 +152,16 @@ async def get_next_lesson_recommendation(
 
     # ── 6. Get embeddings (query + passages in parallel) ──────────────────
     try:
-        query_embedding = await embed_service.embed_query(profile_text)
-        passage_embeddings = await embed_service.embed_passages(lesson_passages)
+        query_embedding = await get_or_create_profile_embedding(
+            supabase,
+            user_id=user_id,
+            profile_text=profile_text,
+        )
+        passage_embeddings = await get_or_create_lesson_embeddings(
+            supabase,
+            candidate_lessons,
+            lesson_passages,
+        )
     except Exception:
         # Embedding unavailable — fall back to level-based recommendation
         avg_score = sum(recent_scores) / len(recent_scores) if recent_scores else 50
@@ -157,7 +177,7 @@ async def get_next_lesson_recommendation(
                     scenario=l.get("scenario", ""),
                     level=l.get("level", 1),
                     fp_reward=l.get("fp_reward", 10),
-                    is_pro_only=l.get("is_pro_only", False),
+                    is_pro_only=bool(l.get("__requires_pro")),
                     relevance_score=0.5,
                     reason="Recommended based on your level progression",
                 )
@@ -193,9 +213,9 @@ async def get_next_lesson_recommendation(
             scenario=lesson.get("scenario", ""),
             level=lesson.get("level", 1),
             fp_reward=lesson.get("fp_reward", 10),
-            is_pro_only=lesson.get("is_pro_only", False),
+            is_pro_only=bool(lesson.get("__requires_pro")),
             relevance_score=round(score, 4),
-            reason=make_reason(lesson, score),
+            reason=lesson.get("__lock_reason") or make_reason(lesson, score),
         )
         for lesson, score in top_lessons
     ]

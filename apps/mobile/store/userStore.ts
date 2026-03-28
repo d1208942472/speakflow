@@ -13,7 +13,13 @@ export interface UserState {
   weeklyFP: number;
   league: LeagueTier;
   isPro: boolean;
+  entitlements: string[];
+  billingProvider: string | null;
   token: string | null;
+  quotaRemaining: number | null;
+  quotaLimit: number | null;
+  quotaUsedToday: number;
+  analysisJobStatus: string | null;
   lastActivityDate: string | null;
   /** User's native language for coaching translation. "en" = no translation. */
   nativeLang: string;
@@ -36,7 +42,13 @@ const initialState: UserState = {
   weeklyFP: 0,
   league: 'bronze' as LeagueTier,
   isPro: false,
+  entitlements: [],
+  billingProvider: null,
   token: null,
+  quotaRemaining: null,
+  quotaLimit: null,
+  quotaUsedToday: 0,
+  analysisJobStatus: null,
   lastActivityDate: null,
   nativeLang: 'en',  // default: no translation
 };

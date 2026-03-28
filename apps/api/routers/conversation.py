@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, field_validator
 
 from dependencies import get_current_user, supabase
+from services.access_control import describe_lesson_access, ensure_profile, has_active_pro
 from services.nvidia_nim import nim_service, ConversationFeedback, ConversationTurn
 from services.nvidia_guardrails import guardrails_service
 from services.nvidia_nemoguard import nemoguard_service
@@ -63,19 +64,10 @@ async def get_conversation_response(
 
     lesson = lesson_resp.data[0]
 
-    # Check pro access
-    if lesson.get("is_pro_only"):
-        profile_resp = (
-            supabase.table("profiles")
-            .select("is_pro")
-            .eq("id", current_user.id)
-            .execute()
-        )
-        if not profile_resp.data or not profile_resp.data[0].get("is_pro"):
-            raise HTTPException(
-                status_code=403,
-                detail="This lesson requires a Pro subscription",
-            )
+    ensure_profile(supabase, current_user)
+    access = describe_lesson_access(lesson, has_active_pro(supabase, current_user.id))
+    if not access["can_access"]:
+        raise HTTPException(status_code=403, detail=access["lock_reason"])
 
     # Content safety check via Llama Guard 4 (non-blocking on API failure)
     is_safe, safety_reason = await guardrails_service.is_safe(request.user_message)

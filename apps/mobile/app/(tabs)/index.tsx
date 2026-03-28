@@ -25,10 +25,10 @@ function getGreeting(): string {
 
 // Fallback lessons for offline / API unavailable
 const FALLBACK_LESSONS: Lesson[] = [
-  { id: 'interview-001', title: 'Tell me about yourself', scenario: 'Job Interview', level: 1, fpReward: 20, isProOnly: false },
-  { id: 'interview-002', title: 'Strengths and weaknesses', scenario: 'Job Interview', level: 2, fpReward: 25, isProOnly: false },
-  { id: 'presentation-001', title: 'Opening a presentation', scenario: 'Presentations', level: 1, fpReward: 20, isProOnly: false },
-  { id: 'smalltalk-001', title: 'Breaking the ice', scenario: 'Small Talk', level: 1, fpReward: 15, isProOnly: false },
+  { id: 'interview-001', title: 'Tell me about yourself', scenario: 'Job Interview', level: 1, fpReward: 20, isProOnly: false, canAccess: true },
+  { id: 'interview-002', title: 'Strengths and weaknesses', scenario: 'Job Interview', level: 2, fpReward: 25, isProOnly: false, canAccess: true },
+  { id: 'presentation-001', title: 'Opening a presentation', scenario: 'Presentations', level: 1, fpReward: 20, isProOnly: false, canAccess: true },
+  { id: 'smalltalk-001', title: 'Breaking the ice', scenario: 'Small Talk', level: 1, fpReward: 15, isProOnly: false, canAccess: true },
 ];
 
 interface ApiLessonsResponse {
@@ -39,8 +39,17 @@ interface ApiLessonsResponse {
     title: string;
     fp_reward: number;
     is_pro_only: boolean;
+    can_access: boolean;
   }>;
 }
+
+const SCENARIO_DISPLAY: Record<string, string> = {
+  job_interview: 'Job Interview',
+  presentation: 'Presentations',
+  small_talk: 'Small Talk',
+  email: 'Email Writing',
+  negotiation: 'Negotiation',
+};
 
 function useApiLessons(): { lessons: Lesson[]; isLoading: boolean } {
   const token = useUserStore((s) => s.token);
@@ -55,10 +64,11 @@ function useApiLessons(): { lessons: Lesson[]; isLoading: boolean } {
         const mapped: Lesson[] = data.lessons.map((l) => ({
           id: l.id,
           title: l.title,
-          scenario: l.scenario,
+          scenario: SCENARIO_DISPLAY[l.scenario] ?? l.scenario,
           level: l.level as 1 | 2 | 3 | 4 | 5,
           fpReward: l.fp_reward,
           isProOnly: l.is_pro_only,
+          canAccess: l.can_access,
         }));
         if (mapped.length > 0) setLessons(mapped);
       })
@@ -74,16 +84,16 @@ function useApiLessons(): { lessons: Lesson[]; isLoading: boolean } {
 interface ScenarioCard {
   emoji: string;
   label: string;
-  scenario: string;
+  scenarioKey: string;
   color: string;
 }
 
 const SCENARIO_CARDS: ScenarioCard[] = [
-  { emoji: '💼', label: 'Job Interview', scenario: 'Job Interview', color: '#6C63FF' },
-  { emoji: '📊', label: 'Presentations', scenario: 'Presentations', color: '#4ECDC4' },
-  { emoji: '☕', label: 'Small Talk', scenario: 'Small Talk', color: '#FF8C42' },
-  { emoji: '📧', label: 'Email Writing', scenario: 'Email Writing', color: '#A8E063' },
-  { emoji: '🤝', label: 'Negotiation', scenario: 'Negotiation', color: '#FFD700' },
+  { emoji: '💼', label: 'Job Interview', scenarioKey: 'job_interview', color: '#6C63FF' },
+  { emoji: '📊', label: 'Presentations', scenarioKey: 'presentation', color: '#4ECDC4' },
+  { emoji: '☕', label: 'Small Talk', scenarioKey: 'small_talk', color: '#FF8C42' },
+  { emoji: '📧', label: 'Email Writing', scenarioKey: 'email', color: '#A8E063' },
+  { emoji: '🤝', label: 'Negotiation', scenarioKey: 'negotiation', color: '#FFD700' },
 ];
 
 export default function LearnTab(): React.JSX.Element {
@@ -96,15 +106,18 @@ export default function LearnTab(): React.JSX.Element {
   const firstLessonByScenario = useMemo(() => {
     const map: Record<string, string> = {};
     for (const lesson of lessons) {
-      if (!map[lesson.scenario]) {
-        map[lesson.scenario] = lesson.id;
+      const key =
+        Object.entries(SCENARIO_DISPLAY).find(([, label]) => label === lesson.scenario)?.[0] ??
+        lesson.scenario;
+      if (!map[key]) {
+        map[key] = lesson.id;
       }
     }
     return map;
   }, [lessons]);
 
-  const handleScenarioPress = (scenario: string): void => {
-    const lessonId = firstLessonByScenario[scenario];
+  const handleScenarioPress = (scenarioKey: string): void => {
+    const lessonId = firstLessonByScenario[scenarioKey];
     if (lessonId) {
       router.push(`/lesson/${lessonId}`);
     }
@@ -198,9 +211,9 @@ export default function LearnTab(): React.JSX.Element {
         <View style={styles.scenarioGrid}>
           {SCENARIO_CARDS.map((card) => (
             <TouchableOpacity
-              key={card.scenario}
+              key={card.scenarioKey}
               style={[styles.scenarioCard, { borderColor: `${card.color}40` }]}
-              onPress={() => handleScenarioPress(card.scenario)}
+              onPress={() => handleScenarioPress(card.scenarioKey)}
               activeOpacity={0.75}
             >
               <View

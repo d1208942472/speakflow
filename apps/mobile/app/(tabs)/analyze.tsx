@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Colors } from '../../constants/Colors';
 import { useSlideAnalyzer } from '../../hooks/useSlideAnalyzer';
-import { useAuthStore } from '../../store/authStore';
+import { useUserStore } from '../../store/userStore';
 
 type AnalyzeTab = 'slide' | 'document';
 type CoachingFocus = 'presentation' | 'email' | 'document' | 'general';
@@ -32,7 +32,7 @@ const COACHING_FOCUS_OPTIONS: { key: CoachingFocus; label: string; emoji: string
 export default function AnalyzeScreen(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<AnalyzeTab>('slide');
   const [coachingFocus, setCoachingFocus] = useState<CoachingFocus>('presentation');
-  const { profile } = useAuthStore();
+  const isPro = useUserStore((s) => s.isPro);
   const {
     phase,
     slideResult,
@@ -44,7 +44,6 @@ export default function AnalyzeScreen(): React.JSX.Element {
     reset,
   } = useSlideAnalyzer();
 
-  const isPro = profile?.is_pro ?? false;
   const isLoading = phase === 'picking' || phase === 'uploading';
 
   const handleAnalyze = async () => {

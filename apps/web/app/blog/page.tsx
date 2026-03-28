@@ -14,6 +14,7 @@ const featuredPosts = [
     readTime: '5 min read',
     date: 'Mar 15, 2026',
     emoji: '🎤',
+    slug: '/blog/how-nvidia-riva-asr-scores-pronunciation',
   },
   {
     title: '10 Business English Phrases That Will Get You Promoted',
@@ -108,27 +109,38 @@ export default function BlogPage() {
       {/* Posts grid */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-24">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {featuredPosts.map((post) => (
-            <article
-              key={post.title}
-              className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-200 hover:shadow-card group cursor-pointer"
-            >
-              <div className="text-4xl mb-4">{post.emoji}</div>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-primary text-xs font-semibold bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
-                  {post.category}
-                </span>
-                <span className="text-slate-500 text-xs">{post.readTime}</span>
-              </div>
-              <h2 className="text-white font-bold text-lg leading-snug mb-3 group-hover:text-primary transition-colors">
-                {post.title}
-              </h2>
-              <p className="text-slate-400 text-sm leading-relaxed line-clamp-3">{post.excerpt}</p>
-              <div className="mt-4 pt-4 border-t border-border/50">
-                <span className="text-slate-500 text-xs">{post.date}</span>
-              </div>
-            </article>
-          ))}
+          {featuredPosts.map((post) => {
+            const CardWrapper = post.slug
+              ? ({ children }: { children: React.ReactNode }) => (
+                  <Link href={post.slug!} className="block">{children}</Link>
+                )
+              : ({ children }: { children: React.ReactNode }) => <>{children}</>
+            return (
+              <CardWrapper key={post.title}>
+                <article
+                  className="bg-card border border-border rounded-3xl p-6 hover:border-primary/50 transition-all duration-200 hover:shadow-card group cursor-pointer h-full"
+                >
+                  <div className="text-4xl mb-4">{post.emoji}</div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-primary text-xs font-semibold bg-primary/10 border border-primary/20 px-2 py-0.5 rounded-full">
+                      {post.category}
+                    </span>
+                    <span className="text-slate-500 text-xs">{post.readTime}</span>
+                  </div>
+                  <h2 className="text-white font-bold text-lg leading-snug mb-3 group-hover:text-primary transition-colors">
+                    {post.title}
+                  </h2>
+                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-3">{post.excerpt}</p>
+                  <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
+                    <span className="text-slate-500 text-xs">{post.date}</span>
+                    {post.slug && (
+                      <span className="text-primary text-xs font-medium">Read →</span>
+                    )}
+                  </div>
+                </article>
+              </CardWrapper>
+            )
+          })}
         </div>
 
         {/* Newsletter CTA */}

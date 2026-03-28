@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { Metadata } from 'next'
+import { ManageBillingCard } from '../../components/ManageBillingCard'
 
 export const metadata: Metadata = {
   title: 'Welcome to SpeakFlow Pro!',
@@ -72,7 +73,19 @@ export default function SuccessPage() {
               </li>
             ))}
           </ol>
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm text-slate-300">
+              If you completed checkout on the web before logging into the app, sign in with the
+              same email address you used during payment. That is how SpeakFlow links your
+              subscription during Public Beta.
+            </p>
+          </div>
         </div>
+
+        <ManageBillingCard
+          title="Need to update billing now?"
+          description="Use the same checkout email to open your billing portal and review your subscription."
+        />
 
         {/* App store buttons */}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">

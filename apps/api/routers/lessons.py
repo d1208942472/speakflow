@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from dependencies import get_current_user, supabase
+from services.access_control import describe_lesson_access, ensure_profile, has_active_pro
 
 router = APIRouter(prefix="/lessons", tags=["lessons"])
 
@@ -36,6 +37,9 @@ class LessonResponse(BaseModel):
     conversation_system_prompt: str
     fp_reward: int
     is_pro_only: bool
+    requires_pro: bool
+    can_access: bool
+    lock_reason: Optional[str]
     sort_order: int
 
 
@@ -71,17 +75,8 @@ async def list_lessons(
             detail=f"Invalid scenario. Must be one of: {valid_scenarios}",
         )
 
-    # Check user's pro status (still requires a DB call per user)
-    profile_resp = (
-        supabase.table("profiles")
-        .select("is_pro")
-        .eq("id", current_user.id)
-        .execute()
-    )
-
-    is_pro = False
-    if profile_resp.data:
-        is_pro = profile_resp.data[0].get("is_pro", False)
+    ensure_profile(supabase, current_user)
+    is_pro = has_active_pro(supabase, current_user.id)
 
     # Use cache for the full lesson list — lessons are static content
     all_lessons = _get_cached_lessons()
@@ -103,24 +98,26 @@ async def list_lessons(
     lessons_data = all_lessons
     if scenario:
         lessons_data = [l for l in lessons_data if l.get("scenario") == scenario]
-    if not is_pro:
-        lessons_data = [l for l in lessons_data if not l.get("is_pro_only")]
-
-    lessons = [
-        LessonResponse(
-            id=lesson["id"],
-            scenario=lesson["scenario"],
-            level=lesson["level"],
-            title=lesson["title"],
-            description=lesson["description"],
-            target_phrases=lesson.get("target_phrases") or [],
-            conversation_system_prompt=lesson["conversation_system_prompt"],
-            fp_reward=lesson["fp_reward"],
-            is_pro_only=lesson["is_pro_only"],
-            sort_order=lesson["sort_order"],
+    lessons = []
+    for lesson in lessons_data:
+        access = describe_lesson_access(lesson, is_pro)
+        lessons.append(
+            LessonResponse(
+                id=lesson["id"],
+                scenario=lesson["scenario"],
+                level=lesson["level"],
+                title=lesson["title"],
+                description=lesson["description"],
+                target_phrases=lesson.get("target_phrases") or [],
+                conversation_system_prompt=lesson["conversation_system_prompt"],
+                fp_reward=lesson["fp_reward"],
+                is_pro_only=lesson["is_pro_only"],
+                requires_pro=access["requires_pro"],
+                can_access=access["can_access"],
+                lock_reason=access["lock_reason"],
+                sort_order=lesson["sort_order"],
+            )
         )
-        for lesson in lessons_data
-    ]
 
     return LessonsListResponse(
         lessons=lessons,
@@ -150,23 +147,8 @@ async def get_lesson(
 
     lesson = lesson_resp.data[0]
 
-    # Check pro access for pro-only lessons
-    if lesson.get("is_pro_only"):
-        profile_resp = (
-            supabase.table("profiles")
-            .select("is_pro")
-            .eq("id", current_user.id)
-            .execute()
-        )
-        is_pro = False
-        if profile_resp.data:
-            is_pro = profile_resp.data[0].get("is_pro", False)
-
-        if not is_pro:
-            raise HTTPException(
-                status_code=403,
-                detail="This lesson requires a Pro subscription",
-            )
+    ensure_profile(supabase, current_user)
+    access = describe_lesson_access(lesson, has_active_pro(supabase, current_user.id))
 
     return LessonResponse(
         id=lesson["id"],
@@ -178,5 +160,8 @@ async def get_lesson(
         conversation_system_prompt=lesson["conversation_system_prompt"],
         fp_reward=lesson["fp_reward"],
         is_pro_only=lesson["is_pro_only"],
+        requires_pro=access["requires_pro"],
+        can_access=access["can_access"],
+        lock_reason=access["lock_reason"],
         sort_order=lesson["sort_order"],
     )

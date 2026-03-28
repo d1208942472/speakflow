@@ -15,6 +15,7 @@ const LEAGUE_EMOJI: Record<LeagueTier, string> = {
   bronze: '🥉',
   silver: '🥈',
   gold: '🥇',
+  platinum: '🏅',
   diamond: '💎',
 };
 

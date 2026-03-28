@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Script from 'next/script'
 import './globals.css'
+import { getSiteUrl } from '../lib/site'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -9,7 +10,7 @@ const inter = Inter({
   display: 'swap',
 })
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://speakflow.ai'
+const siteUrl = getSiteUrl()
 const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 export const metadata: Metadata = {
@@ -35,6 +36,10 @@ export const metadata: Metadata = {
   authors: [{ name: 'SpeakFlow' }],
   creator: 'SpeakFlow',
   publisher: 'SpeakFlow',
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/apple-touch-icon.svg', type: 'image/svg+xml' }],
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -45,7 +50,7 @@ export const metadata: Metadata = {
       'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA. Now in early access — free for founding members.',
     images: [
       {
-        url: '/og-image.png',
+        url: '/opengraph-image.svg',
         width: 1200,
         height: 630,
         alt: 'SpeakFlow — AI Business English Coach',
@@ -57,7 +62,7 @@ export const metadata: Metadata = {
     title: 'SpeakFlow — AI Business English Coach | Powered by NVIDIA',
     description:
       'Master business English in 3 minutes a day. Real-time AI pronunciation scoring powered by NVIDIA.',
-    images: ['/og-image.png'],
+    images: ['/opengraph-image.svg'],
     creator: '@speakflowai',
   },
   robots: {
@@ -70,11 +75,6 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
-  },
-  icons: {
-    icon: '/favicon.ico',
-    shortcut: '/favicon-16x16.png',
-    apple: '/apple-touch-icon.png',
   },
   manifest: '/site.webmanifest',
 }

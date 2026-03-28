@@ -28,7 +28,7 @@ npx supabase db push
 ### Enable Auth
 - Project Settings → Auth → Enable Email/Password
 - Enable "Confirm email" (disable for dev)
-- Set Site URL to your Vercel domain
+- Set Site URL to `https://speakmeteor.win`
 - Add redirect URLs: `https://yourdomain.com/**`
 
 ---
@@ -54,65 +54,88 @@ npx supabase db push
 
 ---
 
-## 3. Railway Backend Deployment
+## 3. Render Backend Deployment
+
+> **Current production URL:** `https://speakflow-api.onrender.com`
+> Deployment config: `speakflow/render.yaml` (already committed)
 
 ### Connect Repository
-1. Go to [railway.app](https://railway.app) → New Project
-2. **Deploy from GitHub repo** → Select `speakflow`
-3. Choose the `apps/api` root directory
+1. Go to [render.com](https://render.com) → New → Web Service
+2. Connect your GitHub repo → Select `speakflow`
+3. Render will auto-detect `render.yaml` at the repo root
 
-### Configure Service
-1. Service Settings → Root Directory: `apps/api`
-2. Build Command: `pip install -r requirements.txt`
-3. Start Command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+### render.yaml (already configured)
+Render reads this file automatically. Key settings:
+- Root directory: `apps/api`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Health check path: `/health`
 
 ### Set Environment Variables
-In Railway Dashboard → Variables:
+In Render Dashboard → Environment:
 ```
 NVIDIA_API_KEY=nvapi-...
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
+SUPABASE_SERVICE_KEY=eyJ...          # service_role key
 REVENUECAT_WEBHOOK_SECRET=...
 ENVIRONMENT=production
 ```
 
-### Custom Domain (Optional)
-- Settings → Domains → Add custom domain
-- Point `api.speakflow.ai` CNAME to Railway-provided domain
+### Runtime Plan
+`render.yaml` is already configured for `starter`, so keep-alive pings are not required.
+
+### Custom Domain
+- Settings → Custom Domains → Add `api.speakmeteor.win`
+- In Cloudflare DNS, add:
+  - `CNAME` `api` → `speakflow-api.onrender.com`
+  - Proxy status: `Proxied` after Cloudflare Worker routing is attached
+- In Render Environment, also set:
+  - `PUBLIC_SITE_URL=https://speakmeteor.win`
+  - `PUBLIC_SITE_URLS=https://www.speakmeteor.win,https://speakmeteor.win`
 
 ---
 
-## 4. Vercel Web Deployment
+## 4. Cloudflare Worker Web Deployment
 
-### Connect Repository
-1. Go to [vercel.com](https://vercel.com) → New Project
-2. Import from GitHub → Select `speakflow`
-3. **Root Directory**: `apps/web`
-4. Framework Preset: **Next.js** (auto-detected)
+### Build Static Assets
+```bash
+npm --prefix apps/web run build
+```
+
+### Deploy Worker + Static Assets
+```bash
+npx wrangler deploy
+```
 
 ### Set Environment Variables
-In Vercel Dashboard → Settings → Environment Variables:
+In local `.env` / CI environment before building:
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 STRIPE_SECRET_KEY=sk_live_...
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 STRIPE_ANNUAL_PRICE_ID=price_xxx
-NEXT_PUBLIC_SITE_URL=https://speakflow.ai
+NEXT_PUBLIC_API_URL=https://api.speakmeteor.win
+NEXT_PUBLIC_SITE_URL=https://speakmeteor.win
+NEXT_PUBLIC_WEB_CHECKOUT_ENABLED=false
 NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
 ```
 
 ### Custom Domain
-1. Settings → Domains → Add `speakflow.ai`
-2. Update DNS at your registrar:
-   - A record: `76.76.21.21`
-   - CNAME `www` → `cname.vercel-dns.com`
+1. In Cloudflare DNS, create:
+   - `A` `@` → `76.76.21.21`
+   - `CNAME` `www` → `cname.vercel-dns.com`
+2. Attach Worker routes:
+   - `speakmeteor.win/*`
+   - `www.speakmeteor.win/*`
+   - `api.speakmeteor.win/*`
+3. Keep SSL/TLS mode on `Full`.
 
 ### Verify Deployment
 ```bash
-curl https://speakflow.ai/api/create-checkout -X POST \
-  -H "Content-Type: application/json"
-# Should return: {"error":"Payment service is not configured"} (until Stripe keys are set)
+curl -I https://speakmeteor.win
+curl -I https://www.speakmeteor.win
+curl https://api.speakmeteor.win/health
 ```
 
 ---
@@ -126,7 +149,7 @@ curl https://speakflow.ai/api/create-checkout -X POST \
 ### Configure iOS App
 1. Apps → + New App → iOS
 2. App name: `SpeakFlow`
-3. Bundle ID: `ai.speakflow.app` (must match App Store)
+3. Bundle ID: `app.speakflow.mobile` (must match App Store)
 4. In-App Purchase Key: Upload `.p8` file from App Store Connect
 
 ### Configure Android App
@@ -143,7 +166,7 @@ curl https://speakflow.ai/api/create-checkout -X POST \
 
 ### Webhook (for backend sync)
 1. Project Settings → Integrations → Webhooks
-2. URL: `https://api.speakflow.ai/webhooks/revenuecat`
+2. URL: `https://api.speakmeteor.win/webhooks/revenuecat`
 3. Copy the signing secret → `REVENUECAT_WEBHOOK_SECRET` in Railway
 
 ### Get API Keys
@@ -162,7 +185,7 @@ curl https://speakflow.ai/api/create-checkout -X POST \
 
 ### App Store Connect Setup
 - [ ] Create new app at [appstoreconnect.apple.com](https://appstoreconnect.apple.com)
-- [ ] Bundle ID: `ai.speakflow.app`
+- [ ] Bundle ID: `app.speakflow.mobile`
 - [ ] SKU: `SPEAKFLOW-001`
 - [ ] Primary language: English (U.S.)
 
@@ -199,16 +222,16 @@ eas submit --platform ios
 
 ### Infrastructure
 - [ ] 1. Supabase project created and migrations pushed
-- [ ] 2. Railway API deployed and responding to health check
+- [ ] 2. Render API deployed and responding to health check (speakflow-api.onrender.com/health)
 - [ ] 3. Vercel web deployed at custom domain with HTTPS
-- [ ] 4. All environment variables set in both Vercel and Railway
-- [ ] 5. DNS propagated for speakflow.ai (verify with `dig speakflow.ai`)
+- [ ] 4. All environment variables set in both Vercel and Render
+- [ ] 5. DNS propagated for speakmeteor.win (verify with `dig speakmeteor.win`)
 
 ### Stripe
 - [ ] 6. Stripe account in live mode (not test)
 - [ ] 7. Annual price created: `price_xxx` — $79.99 recurring yearly
 - [ ] 8. `STRIPE_ANNUAL_PRICE_ID` set in Vercel
-- [ ] 9. Stripe webhook configured: `https://speakflow.ai/api/webhooks/stripe`
+- [ ] 9. Stripe webhook configured: `https://api.speakmeteor.win/webhooks/stripe`
 - [ ] 10. Test checkout flow end-to-end with real card (use $0.50 test)
 
 ### NVIDIA Integration
@@ -227,11 +250,12 @@ eas submit --platform ios
 - [ ] 19. Google Analytics 4 property created and tracking code active
 - [ ] 20. Stripe Dashboard showing revenue (test transactions)
 - [ ] 21. Error monitoring configured (Sentry or Vercel Analytics)
-- [ ] 22. Railway health check endpoint at `/health` responding 200
+- [ ] 22. Render health check at `speakflow-api.onrender.com/health` responding 200
+- [ ] 22b. GitHub Actions keep-alive workflow active (`.github/workflows/keep-alive.yml`)
 
 ### Legal & Compliance
-- [ ] 23. Privacy Policy published at `speakflow.ai/privacy` (required for App Store)
-- [ ] 24. Terms of Service published at `speakflow.ai/terms`
+- [ ] 23. Privacy Policy published at `speakmeteor.win/privacy` (required for App Store)
+- [ ] 24. Terms of Service published at `speakmeteor.win/terms`
 
 ---
 
@@ -245,15 +269,15 @@ eas submit --platform ios
 | `STRIPE_SECRET_KEY` | Stripe Dashboard → Developers → API Keys |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe Dashboard → Developers → API Keys |
 | `STRIPE_ANNUAL_PRICE_ID` | Stripe Dashboard → Products → Annual Plan → Price ID |
-| `NEXT_PUBLIC_SITE_URL` | Your domain: `https://speakflow.ai` |
+| `NEXT_PUBLIC_SITE_URL` | Your domain: `https://speakmeteor.win` |
 | `NEXT_PUBLIC_GA_MEASUREMENT_ID` | Google Analytics → Admin → Data Streams |
 
-### Railway (apps/api)
+### Render (apps/api) — speakflow-api.onrender.com
 | Variable | Where to get it |
 |---|---|
 | `NVIDIA_API_KEY` | build.nvidia.com → API Keys |
 | `SUPABASE_URL` | Supabase → Project Settings → API |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase → Project Settings → API |
+| `SUPABASE_SERVICE_KEY` | Supabase → Project Settings → API (service_role) |
 | `REVENUECAT_WEBHOOK_SECRET` | RevenueCat → Project Settings → Integrations |
 | `REVENUECAT_SECRET_KEY` | RevenueCat → Project Settings → API Keys |
 
@@ -261,7 +285,7 @@ eas submit --platform ios
 
 ## Support
 
-- Technical issues: Check Vercel/Railway build logs first
+- Technical issues: Check Vercel/Render build logs first
 - Stripe issues: `stripe logs tail` in CLI for real-time webhook logs
 - NVIDIA API: [forums.developer.nvidia.com](https://forums.developer.nvidia.com)
 - RevenueCat: [community.revenuecat.com](https://community.revenuecat.com)

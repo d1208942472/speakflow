@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { CONTACT_EMAIL, toMailto } from '../lib/contact'
 
 const links = {
   product: [
@@ -11,7 +12,7 @@ const links = {
     { name: 'About', href: '/about' },
     { name: 'Blog', href: '/blog' },
     { name: 'Careers', href: '/careers' },
-    { name: 'Contact', href: 'mailto:hello@speakflow.ai' },
+    { name: 'Contact', href: toMailto(CONTACT_EMAIL) },
   ],
   legal: [
     { name: 'Privacy Policy', href: '/privacy' },
